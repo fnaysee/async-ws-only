@@ -4,7 +4,11 @@
   "description": "Fanap's POD Async service (DIRANA) - Websocket only",
   "main": "./src/network/async.js",
   "scripts": {
-    "test": "mocha --reporter spec --exit"
+    "test": "mocha --reporter spec --exit",
+    "publish:snapshot": "npm run version:snapshot && npm publish --tag snapshot",
+    "version:snapshot": "npm version prerelease --preid snapshot",
+    "publish:release": "npm run version:release && npm publish",
+    "version:release": "npm version 2.7.8"
   },
   "repository": {
     "type": "git",
