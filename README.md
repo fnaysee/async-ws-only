@@ -7,7 +7,7 @@
 First you have to require PodAsync in your project.
 
 ```javascript
-var Async = require('podasync');
+var Async = require('podasync-ws-only');
 ```
 
 To be able to connect to async server, you should set some parameters. `Websockets`protocol is currently supported.

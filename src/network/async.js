@@ -13,15 +13,17 @@
          *******************************************************/
 
         var PodSocketClass,
-            PodUtility;
-
+            PodUtility,
+            LogLevel
         if (typeof(require) !== 'undefined' && typeof(exports) !== 'undefined') {
             PodSocketClass = require('./socket.js');
             PodUtility = require('../utility/utility.js');
+            LogLevel = require('../utility/logger.js');
         }
         else {
             PodSocketClass = POD.Socket;
             PodUtility = POD.AsyncUtility;
+            LogLevel = POD.LogLevel;
         }
 
         var Utility = new PodUtility();
@@ -60,6 +62,7 @@
                 CLOSING: 2, // The connection is in the process of closing.
                 CLOSED: 3 // The connection is closed or couldn't be opened.
             },
+            logLevel = LogLevel(params.logLevel),
             isNode = Utility.isNode(),
             isSocketOpen = false,
             isDeviceRegister = false,
@@ -122,7 +125,8 @@
                     socketAddress: params.socketAddress,
                     wsConnectionWaitTime: params.wsConnectionWaitTime,
                     connectionCheckTimeout: params.connectionCheckTimeout,
-                    connectionCheckTimeoutThreshold: params.connectionCheckTimeoutThreshold
+                    connectionCheckTimeoutThreshold: params.connectionCheckTimeoutThreshold,
+                    logLevel: logLevel
                 });
 
                 checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
@@ -356,9 +360,12 @@
 
                 if (peerId !== undefined) {
                     content.refresh = true;
+                    content.renew = false;
+
                 }
                 else {
                     content.renew = true;
+                    content.refresh = false;
                 }
 
                 pushSendData({
