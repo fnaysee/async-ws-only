@@ -1,6 +1,6 @@
 {
   "name": "podasync-ws-only",
-  "version": "2.7.10-snapshot.1",
+  "version": "2.7.10-snapshot.2",
   "description": "Fanap's POD Async service (DIRANA) - Websocket only",
   "main": "./src/network/async.js",
   "scripts": {
