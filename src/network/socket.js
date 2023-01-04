@@ -23,9 +23,6 @@
       socket,
       waitForSocketToConnectTimeoutId,
       socketRealTimeStatusInterval,
-      //sendPingTimeout,
-      socketCloseTimeout,
-      forceCloseTimeout,
       logLevel = params.logLevel,
       pingController = new PingManager({waitTime: connectionCheckTimeout});
 
@@ -36,28 +33,36 @@
 
         lastRequestTimeoutId: null,
         lastReceivedMessageTime: 0,
+        totalNoMessageCount: 0,
+        timeoutIds: {
+          first: null,
+          second: null,
+          third: null,
+          fourth: null
+        }
       }
 
       return {
-        setPingTimeout() {
-          config.lastRequestTimeoutId = setInterval(()=>{
-            ping();
-            //this.watchForPingResponse();
-          }, config.normalWaitTime)
-        },
         resetPingLoop() {
-          this.updateLastReceivedMessageTime();
           this.stopPingLoop();
           this.setPingTimeout();
-          // this.retries = 0;
+        },
+        setPingTimeout() {
+          config.timeoutIds.first = setTimeout(()=>{
+            ping();
+            config.timeoutIds.first = setTimeout(()=>{
+              ping();
+                config.timeoutIds.fourth = setTimeout(()=>{
+                  socket.close();
+                }, 2000);
+            }, 2000);
+          }, 8000);
         },
         stopPingLoop(){
-          // config.retries = 0;
-          clearInterval(config.lastRequestTimeoutId);
-          // clearTimeout(config.responseTimeoutId)
-        },
-        updateLastReceivedMessageTime() {
-          config.lastReceivedMessageTime = new Date().getTime();
+          clearTimeout(config.timeoutIds.first);
+          clearTimeout(config.timeoutIds.second);
+          clearTimeout(config.timeoutIds.third);
+          clearTimeout(config.timeoutIds.fourth);
         },
       }
     }
