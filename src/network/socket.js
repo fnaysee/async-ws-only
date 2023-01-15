@@ -24,7 +24,8 @@
       waitForSocketToConnectTimeoutId,
       socketRealTimeStatusInterval,
       logLevel = params.logLevel,
-      pingController = new PingManager({waitTime: connectionCheckTimeout});
+      pingController = new PingManager({waitTime: connectionCheckTimeout}),
+      socketWatchTimeout;
 
 
     function PingManager(params) {
@@ -83,15 +84,24 @@
 
           socket = new WebSocket(address, []);
 
-          socketRealTimeStatusInterval && clearInterval(socketRealTimeStatusInterval);
-          socketRealTimeStatusInterval = setInterval(function() {
-            switch (socket.readyState) {
-              case 2:
-                onCloseHandler(null);
-                break;
-              case 3:
-                socketRealTimeStatusInterval && clearInterval(socketRealTimeStatusInterval);
-                break;
+          // socketRealTimeStatusInterval && clearInterval(socketRealTimeStatusInterval);
+          // socketRealTimeStatusInterval = setInterval(function() {
+          //   switch (socket.readyState) {
+          //     case 2:
+          //       onCloseHandler(null);
+          //       socketRealTimeStatusInterval && clearInterval(socketRealTimeStatusInterval);
+          //       break;
+          //     case 3:
+          //
+          //       break;
+          //   }
+          // }, 5000);
+
+          socketWatchTimeout && clearTimeout(socketWatchTimeout);
+          socketWatchTimeout = setTimeout(() => {
+            if(socket.readyState !== 1) {
+              onCloseHandler(null);
+              socket.close();
             }
           }, 5000);
 

@@ -168,15 +168,15 @@
                     isDeviceRegister = false;
                     oldPeerId = peerId;
 
-                    socketState = socketStateType.CLOSED;
-
-                    fireEvent('stateChange', {
-                        socketState: socketState,
-                        timeUntilReconnect: 0,
-                        deviceRegister: isDeviceRegister,
-                        serverRegister: isServerRegister,
-                        peerId: peerId
-                    });
+                    // socketState = socketStateType.CLOSED;
+                    //
+                    // fireEvent('stateChange', {
+                    //     socketState: socketState,
+                    //     timeUntilReconnect: 0,
+                    //     deviceRegister: isDeviceRegister,
+                    //     serverRegister: isServerRegister,
+                    //     peerId: peerId
+                    // });
 
                     fireEvent('disconnect', event);
 
@@ -206,7 +206,7 @@
                         }, 1000 * retryStep);
 
                         if (retryStep < 64) {
-                            retryStep *= 2;
+                            retryStep += 8;
                         }
 
                         // socketReconnectCheck && clearTimeout(socketReconnectCheck);
