@@ -97,13 +97,13 @@
           //   }
           // }, 5000);
 
-          socketWatchTimeout && clearTimeout(socketWatchTimeout);
-          socketWatchTimeout = setTimeout(() => {
-            if(socket.readyState !== 1) {
-              onCloseHandler(null);
-              socket.close();
-            }
-          }, 5000);
+          // socketWatchTimeout && clearTimeout(socketWatchTimeout);
+          // socketWatchTimeout = setTimeout(() => {
+          //   if(socket.readyState !== 1) {
+          //     onCloseHandler(null);
+          //     socket.close();
+          //   }
+          // }, 5000);
 
           socket.onopen = function(event) {
             waitForSocketToConnect(function() {
