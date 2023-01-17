@@ -54,6 +54,8 @@
             config.timeoutIds.first = setTimeout(()=>{
               ping();
                 config.timeoutIds.fourth = setTimeout(()=>{
+                  logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
+                  onCloseHandler(null);
                   socket.close();
                 }, 2000);
             }, 2000);
