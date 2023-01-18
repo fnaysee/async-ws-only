@@ -99,18 +99,23 @@
           //   }
           // }, 5000);
 
-          // socketWatchTimeout && clearTimeout(socketWatchTimeout);
-          // socketWatchTimeout = setTimeout(() => {
-          //   if(socket.readyState !== 1) {
-          //     onCloseHandler(null);
-          //     socket.close();
-          //   }
-          // }, 5000);
+          /**
+           * Watches the socket to make sure it's state changes to 1 in 5 seconds
+           */
+          socketWatchTimeout && clearTimeout(socketWatchTimeout);
+          socketWatchTimeout = setTimeout(() => {
+            // if(socket.readyState !== 1) {
+            logLevel.debug && console.debug("[Async][Socket.js] socketWatchTimeout triggered.");
+            onCloseHandler(null);
+            socket.close();
+            // }
+          }, 5000);
 
           socket.onopen = function(event) {
             waitForSocketToConnect(function() {
               pingController.resetPingLoop();
               eventCallback["open"]();
+              socketWatchTimeout && clearTimeout(socketWatchTimeout);
             });
           }
 
@@ -125,11 +130,13 @@
             pingController.stopPingLoop();
             logLevel.debug && console.debug("[Async][Socket.js] socket.onclose happened. EventData:", event);
             onCloseHandler(event);
+            socketWatchTimeout && clearTimeout(socketWatchTimeout);
           }
 
           socket.onerror = function(event) {
             logLevel.debug && console.debug("[Async][Socket.js] socket.onerror happened. EventData:", event);
             eventCallback["error"](event);
+            socketWatchTimeout && clearTimeout(socketWatchTimeout);
           }
         } catch (error) {
           eventCallback["customError"]({
@@ -210,6 +217,7 @@
     this.close = function() {
       logLevel.debug && console.debug("[Async][Socket.js] Closing socket by call to this.close");
       socket.close();
+      socketWatchTimeout && clearTimeout(socketWatchTimeout);
     }
 
     init();
