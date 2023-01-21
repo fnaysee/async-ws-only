@@ -205,9 +205,9 @@
                             socket.connect();
                         }, 1000 * retryStep);
 
-                        if (retryStep < 64) {
-                            retryStep += 8;
-                        }
+                        // if (retryStep < 64) {
+                        //     retryStep += 8;
+                        // }
 
                         // socketReconnectCheck && clearTimeout(socketReconnectCheck);
                         //
