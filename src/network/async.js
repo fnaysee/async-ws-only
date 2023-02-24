@@ -83,7 +83,7 @@
             connectionRetryInterval = params.connectionRetryInterval || 5000,
             socketReconnectRetryInterval,
             socketReconnectCheck,
-            retryStep = 4,
+            // retryStep = 4,
             reconnectOnClose = (typeof params.reconnectOnClose === 'boolean') ? params.reconnectOnClose : true,
             asyncLogging = (params.asyncLogging && typeof params.asyncLogging.onFunction === 'boolean') ? params.asyncLogging.onFunction : false,
             onReceiveLogging = (params.asyncLogging && typeof params.asyncLogging.onMessageReceive === 'boolean')
@@ -91,6 +91,26 @@
                 : false,
             onSendLogging = (params.asyncLogging && typeof params.asyncLogging.onMessageSend === 'boolean') ? params.asyncLogging.onMessageSend : false,
             workerId = (params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number') ? params.asyncLogging.workerId : 0;
+
+        // function setRetryStep(val){
+        //     console.log("new retryStep value:", val);
+        //     retryStep = val;
+        // }
+        //
+        // function getRetryStep() {
+        //     return retryStep;
+        // }
+
+        const retryStep = {
+            value: 4,
+            get() {
+                return retryStep.value;
+            },
+            set(val) {
+                logLevel.debug && console.debug("[Async][async.js] retryStep new value:", val);
+                retryStep.value = val;
+            }
+        };
 
         /*******************************************************
          *            P R I V A T E   M E T H O D S            *
@@ -144,7 +164,7 @@
                     socketReconnectCheck && clearTimeout(socketReconnectCheck);
 
                     isSocketOpen = true;
-                    retryStep = 4;
+                    retryStep.set(4);
 
                     socketState = socketStateType.OPEN;
                     fireEvent('stateChange', {
@@ -183,17 +203,19 @@
                     if (reconnectOnClose) {
                         if (asyncLogging) {
                             if (workerId > 0) {
-                                Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep + 's');
+                                Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
                             }
                             else {
-                                Utility.asyncStepLogger('Reconnecting after ' + retryStep + 's');
+                                Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
                             }
                         }
+
+                        logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
 
                         socketState = socketStateType.CLOSED;
                         fireEvent('stateChange', {
                             socketState: socketState,
-                            timeUntilReconnect: 1000 * retryStep,
+                            timeUntilReconnect: 1000 * retryStep.get(),
                             deviceRegister: isDeviceRegister,
                             serverRegister: isServerRegister,
                             peerId: peerId
@@ -203,11 +225,12 @@
 
                         socketReconnectRetryInterval = setTimeout(function () {
                             socket.connect();
-                        }, 1000 * retryStep);
+                        }, 1000 * retryStep.get());
 
-                        // if (retryStep < 64) {
-                        //     retryStep += 8;
-                        // }
+                        if (retryStep.get() < 64) {
+                            // retryStep += 3;
+                            retryStep.set(retryStep.get() + 3)
+                        }
 
                         // socketReconnectCheck && clearTimeout(socketReconnectCheck);
                         //
@@ -535,16 +558,16 @@
 
             fireEvent = function (eventName, param, ack) {
                 // try {
-                    if (ack) {
-                        for (var id in eventCallbacks[eventName]) {
-                            eventCallbacks[eventName][id](param, ack);
-                        }
+                if (ack) {
+                    for (var id in eventCallbacks[eventName]) {
+                        eventCallbacks[eventName][id](param, ack);
                     }
-                    else {
-                        for (var id in eventCallbacks[eventName]) {
-                            eventCallbacks[eventName][id](param);
-                        }
+                }
+                else {
+                    for (var id in eventCallbacks[eventName]) {
+                        eventCallbacks[eventName][id](param);
                     }
+                }
                 // }
                 // catch (e) {
                 //     fireEvent('error', {
@@ -579,6 +602,7 @@
 
             var socketData = {
                 type: messageType,
+                uniqueId: params.uniqueId ? params.uniqueId : undefined,
                 content: params.content
             };
 
@@ -696,7 +720,8 @@
             socket.close();
 
             socketReconnectRetryInterval = setTimeout(function () {
-                retryStep = 4;
+                // retryStep = 4;
+                retryStep.set(4);
                 socket.connect();
             }, 2000);
         };
