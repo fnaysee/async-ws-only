@@ -13,10 +13,12 @@
          *******************************************************/
 
         var PodSocketClass,
+            WebRTCClass,
             PodUtility,
             LogLevel
         if (typeof(require) !== 'undefined' && typeof(exports) !== 'undefined') {
             PodSocketClass = require('./socket.js');
+            WebRTCClass = require('./webrtc.js');
             PodUtility = require('../utility/utility.js');
             LogLevel = require('../utility/logger.js');
         }
@@ -42,6 +44,7 @@
             },
             ackCallback = {},
             socket,
+            webRTCClass,
             asyncMessageType = {
                 PING: 0,
                 SERVER_REGISTER: 1,
@@ -90,7 +93,8 @@
                 ? params.asyncLogging.onMessageReceive
                 : false,
             onSendLogging = (params.asyncLogging && typeof params.asyncLogging.onMessageSend === 'boolean') ? params.asyncLogging.onMessageSend : false,
-            workerId = (params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number') ? params.asyncLogging.workerId : 0;
+            workerId = (params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number') ? params.asyncLogging.workerId : 0,
+            webrtcConfig = (params.webrtcConfig ? params.webrtcConfig : null);
 
         // function setRetryStep(val){
         //     console.log("new retryStep value:", val);
@@ -120,6 +124,9 @@
                 switch (protocol) {
                     case 'websocket':
                         initSocket();
+                        break;
+                    case 'webrtc':
+                        initWebrtc();
                         break;
                 }
             },
@@ -281,6 +288,124 @@
                 });
 
                 socket.on('error', function (error) {
+                    fireEvent('error', {
+                        errorCode: '',
+                        errorMessage: '',
+                        errorEvent: error
+                    });
+                });
+            },
+            initWebrtc = function () {
+                webRTCClass = new WebRTCClass({
+                    baseUrl: (webrtcConfig ? webrtcConfig.baseUrl : null),
+                    configuration : (webrtcConfig ? webrtcConfig.configuration : null),
+                    connectionCheckTimeout: params.connectionCheckTimeout,
+                    logLevel: logLevel
+                });
+
+                checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
+                    if (!isSocketOpen) {
+                        fireEvent('error', {
+                            errorCode: 4001,
+                            errorMessage: 'Can not open Socket!'
+                        });
+                    }
+                }, 65000);
+
+                webRTCClass.on('open', function () {
+                    checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
+                    socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                    socketReconnectCheck && clearTimeout(socketReconnectCheck);
+
+                    isSocketOpen = true;
+                    retryStep.set(4);
+
+                    socketState = socketStateType.OPEN;
+                    fireEvent('stateChange', {
+                        socketState: socketState,
+                        timeUntilReconnect: 0,
+                        deviceRegister: isDeviceRegister,
+                        serverRegister: isServerRegister,
+                        peerId: peerId
+                    });
+                });
+
+                webRTCClass.on('message', function (msg) {
+                    console.log({msg})
+                    handleSocketMessage(msg);
+                    if (onReceiveLogging) {
+                        asyncLogger('Receive', msg);
+                    }
+                });
+
+                webRTCClass.on('close', function (event) {
+                    isSocketOpen = false;
+                    isDeviceRegister = false;
+                    oldPeerId = peerId;
+
+                    fireEvent('disconnect', event);
+
+                    if (reconnectOnClose) {
+                        if (asyncLogging) {
+                            if (workerId > 0) {
+                                Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
+                            }
+                            else {
+                                Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
+                            }
+                        }
+
+                        logLevel.debug && console.debug("[Async][async.js] on connection close, retryStep:", retryStep.get());
+
+                        socketState = socketStateType.CLOSED;
+                        fireEvent('stateChange', {
+                            socketState: socketState,
+                            timeUntilReconnect: 1000 * retryStep.get(),
+                            deviceRegister: isDeviceRegister,
+                            serverRegister: isServerRegister,
+                            peerId: peerId
+                        });
+
+                        socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+
+                        socketReconnectRetryInterval = setTimeout(function () {
+                            webRTCClass.connect();
+                        }, 1000 * retryStep.get());
+
+                        if (retryStep.get() < 64) {
+                            // retryStep += 3;
+                            retryStep.set(retryStep.get() + 3)
+                        }
+                    }
+                    else {
+                        socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                        socketReconnectCheck && clearTimeout(socketReconnectCheck);
+                        fireEvent('error', {
+                            errorCode: 4005,
+                            errorMessage: 'Connection Closed!'
+                        });
+
+                        socketState = socketStateType.CLOSED;
+                        fireEvent('stateChange', {
+                            socketState: socketState,
+                            timeUntilReconnect: 0,
+                            deviceRegister: isDeviceRegister,
+                            serverRegister: isServerRegister,
+                            peerId: peerId
+                        });
+                    }
+
+                });
+
+                webRTCClass.on('customError', function (error) {
+                    fireEvent('error', {
+                        errorCode: error.errorCode,
+                        errorMessage: error.errorMessage,
+                        errorEvent: error.errorEvent
+                    });
+                });
+
+                webRTCClass.on('error', function (error) {
                     fireEvent('error', {
                         errorCode: '',
                         errorMessage: '',
@@ -539,6 +664,15 @@
                             pushSendDataQueue.push(msg);
                         }
                         break;
+                    case 'webrtc':
+                        if (socketState === socketStateType.OPEN) {
+                            webRTCClass.emit(msg);
+                        }
+                        else {
+                            pushSendDataQueue.push(msg);
+                        }
+
+                        break;
                 }
             },
 
@@ -669,6 +803,20 @@
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
                     socket.close();
                     break;
+                case 'webrtc':
+                    socketState = socketStateType.CLOSED;
+                    fireEvent('stateChange', {
+                        socketState: socketState,
+                        timeUntilReconnect: 0,
+                        deviceRegister: isDeviceRegister,
+                        serverRegister: isServerRegister,
+                        peerId: peerId
+                    });
+
+                    socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                    webRTCClass.close();
+
+                    break;
             }
         };
 
@@ -698,6 +846,20 @@
 
                     socket.close();
                     break;
+                case 'webrtc':
+                    socketState = socketStateType.CLOSED;
+                    fireEvent('stateChange', {
+                        socketState: socketState,
+                        timeUntilReconnect: 0,
+                        deviceRegister: isDeviceRegister,
+                        serverRegister: isServerRegister,
+                        peerId: peerId
+                    });
+
+                    reconnectOnClose = false;
+                    webRTCClass.close();
+
+                    break;
             }
         };
 
@@ -717,12 +879,18 @@
             });
 
             socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-            socket.close();
+            if(protocol === "websocket")
+                socket.close();
+            else if(protocol == "webrtc")
+                webRTCClass.close()
 
             socketReconnectRetryInterval = setTimeout(function () {
                 // retryStep = 4;
                 retryStep.set(4);
-                socket.connect();
+                if(protocol === "websocket")
+                    socket.close();
+                else if(protocol == "webrtc")
+                    webRTCClass.close()
             }, 2000);
         };
 

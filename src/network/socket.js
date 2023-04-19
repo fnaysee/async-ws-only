@@ -39,7 +39,7 @@
           first: null,
           second: null,
           third: null,
-          fourth: null
+          //fourth: null
         }
       }
 
@@ -51,9 +51,9 @@
         setPingTimeout() {
           config.timeoutIds.first = setTimeout(()=>{
             ping();
-            config.timeoutIds.first = setTimeout(()=>{
+            config.timeoutIds.second = setTimeout(()=>{
               ping();
-              config.timeoutIds.fourth = setTimeout(()=>{
+              config.timeoutIds.third = setTimeout(()=>{
                 logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
                 onCloseHandler(null);
                 socket.close();
@@ -65,7 +65,7 @@
           clearTimeout(config.timeoutIds.first);
           clearTimeout(config.timeoutIds.second);
           clearTimeout(config.timeoutIds.third);
-          clearTimeout(config.timeoutIds.fourth);
+          // clearTimeout(config.timeoutIds.fourth);
         },
       }
     }
