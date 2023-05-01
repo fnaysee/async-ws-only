@@ -282,7 +282,11 @@ let handshakingFunctions = {
                 method: "POST",
                 body: JSON.stringify({
                     offer: offer
-                })
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
             })
                 .then(function (response) {
                     if(response.ok)
@@ -315,7 +319,11 @@ let handshakingFunctions = {
         return new Promise(promiseHandler);
         function promiseHandler(resolve, reject) {
             fetch(addIceCandidateEndPoint, {
-                method: "GET"
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
             })
                 .then(function (response) {
                     if(response.ok)
@@ -365,7 +373,11 @@ let handshakingFunctions = {
                 body: JSON.stringify({
                     "clientId": variables.clientId,
                     "candidate": candidate
-                })
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                },
             })
                 .then(function (response) {
                     if(response.ok)
@@ -416,11 +428,14 @@ function ping() {
     });
 }
 function removeCallbacks(){
-    variables.peerConnection.onicecandidate = null;
-    variables.dataChannel.onclose = null;
-    variables.dataChannel.onmessage = null;
-    variables.dataChannel.onerror = null;
-    variables.dataChannel.onopen = null;
+    if(variables.peerConnection)
+        variables.peerConnection.onicecandidate = null;
+    if(variables.dataChannel) {
+        variables.dataChannel.onclose = null;
+        variables.dataChannel.onmessage = null;
+        variables.dataChannel.onerror = null;
+        variables.dataChannel.onopen = null;
+    }
 }
 
 function WebRTCClass({
