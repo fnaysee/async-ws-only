@@ -66,16 +66,16 @@
                 CLOSED: 3 // The connection is closed or couldn't be opened.
             },
             logLevel = LogLevel(params.logLevel),
-            isNode = Utility.isNode(),
+            // isNode = Utility.isNode(),
             isSocketOpen = false,
             isDeviceRegister = false,
             isServerRegister = false,
             socketState = socketStateType.CONNECTING,
-            asyncState = '',
+            // asyncState = '',
             registerServerTimeoutId,
             registerDeviceTimeoutId,
             checkIfSocketHasOpennedTimeoutId,
-            asyncReadyTimeoutId,
+            // asyncReadyTimeoutId,
             pushSendDataQueue = [],
             oldPeerId,
             peerId = params.peerId,
@@ -884,14 +884,32 @@
             else if(protocol == "webrtc")
                 webRTCClass.close()
 
-            socketReconnectRetryInterval = setTimeout(function () {
+            let tmpReconnectOnClose = reconnectOnClose;
+            reconnectOnClose = false;
+            retryStep.set(0);
+
+            if(protocol === "websocket")
+                socket.connect();
+            else if(protocol == "webrtc")
+                webRTCClass.connect()
+
+            setTimeout(function () {
                 // retryStep = 4;
-                retryStep.set(4);
-                if(protocol === "websocket")
-                    socket.close();
-                else if(protocol == "webrtc")
-                    webRTCClass.close()
-            }, 2000);
+                retryStep.set(0);
+                reconnectOnClose = tmpReconnectOnClose;
+
+                if(socketState != socketStateType.OPEN){
+                    if(protocol === "websocket")
+                        socket.connect();
+                    else if(protocol == "webrtc")
+                        webRTCClass.connect()
+                }
+
+                // if(protocol === "websocket")
+                //     socket.connect();
+                // else if(protocol == "webrtc")
+                //     webRTCClass.connect()
+            }, 4000);
         };
 
         this.generateUUID = Utility.generateUUID;
