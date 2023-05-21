@@ -149,10 +149,13 @@
 
         onCloseHandler = function(event) {
           pingController.stopPingLoop();
-          socket.onclose = null;
-          socket.onmessage = null;
-          socket.onerror = null;
-          socket.onopen = null;
+          if(socket) {
+            socket.onclose = null;
+            socket.onmessage = null;
+            socket.onerror = null;
+            socket.onopen = null;
+            socket = null;
+          }
           eventCallback["close"](event);
         },
 

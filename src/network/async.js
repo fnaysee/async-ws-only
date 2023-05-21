@@ -105,6 +105,25 @@
         //     return retryStep;
         // }
 
+        const reconnOnClose = {
+            value: 4,
+            oldValue: 4,
+            get() {
+                return reconnOnClose.value;
+            },
+            set(val) {
+                reconnOnClose.value = val;
+            },
+            getOld() {
+                return reconnOnClose.oldValue;
+            },
+            setOld(val) {
+                reconnOnClose.oldValue = val;
+            },
+        };
+
+        reconnOnClose.set(reconnectOnClose);
+
         const retryStep = {
             value: 4,
             get() {
@@ -207,7 +226,8 @@
 
                     fireEvent('disconnect', event);
 
-                    if (reconnectOnClose) {
+                    if (reconnOnClose.get() || reconnOnClose.getOld()) {
+                        // reconnOnClose.set(reconnOnClose.getOld());
                         if (asyncLogging) {
                             if (workerId > 0) {
                                 Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
@@ -345,7 +365,7 @@
 
                     fireEvent('disconnect', event);
 
-                    if (reconnectOnClose) {
+                    if (reconnOnClose.get()) {
                         if (asyncLogging) {
                             if (workerId > 0) {
                                 Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
@@ -841,8 +861,8 @@
                         serverRegister: isServerRegister,
                         peerId: peerId
                     });
-
-                    reconnectOnClose = false;
+                    reconnOnClose.set(false)
+                    // reconnectOnClose = false;
 
                     socket.close();
                     break;
@@ -855,14 +875,15 @@
                         serverRegister: isServerRegister,
                         peerId: peerId
                     });
-
-                    reconnectOnClose = false;
+                    reconnOnClose.set(false)
+                    // reconnectOnClose = false;
                     webRTCClass.close();
 
                     break;
             }
         };
 
+        let reconnectSocketTimeout;
         this.reconnectSocket = function () {
             oldPeerId = peerId;
             isDeviceRegister = false;
@@ -884,8 +905,10 @@
             else if(protocol == "webrtc")
                 webRTCClass.close()
 
-            let tmpReconnectOnClose = reconnectOnClose;
-            reconnectOnClose = false;
+            // let tmpReconnectOnClose = reconnectOnClose;
+            // reconnectOnClose = false;
+            reconnOnClose.setOld(reconnOnClose.get())
+            reconnOnClose.set(false);
             retryStep.set(0);
 
             if(protocol === "websocket")
@@ -893,10 +916,12 @@
             else if(protocol == "webrtc")
                 webRTCClass.connect()
 
-            setTimeout(function () {
+            reconnectSocketTimeout && clearTimeout(reconnectSocketTimeout);
+            reconnectSocketTimeout = setTimeout(function () {
                 // retryStep = 4;
                 retryStep.set(0);
-                reconnectOnClose = tmpReconnectOnClose;
+                // reconnectOnClose = tmpReconnectOnClose;
+                reconnOnClose.set(reconnOnClose.getOld());
 
                 if(socketState != socketStateType.OPEN){
                     if(protocol === "websocket")
