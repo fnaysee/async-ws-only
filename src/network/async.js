@@ -106,8 +106,8 @@
         // }
 
         const reconnOnClose = {
-            value: 4,
-            oldValue: 4,
+            value: false,
+            oldValue: null,
             get() {
                 return reconnOnClose.value;
             },
@@ -213,6 +213,7 @@
                     isSocketOpen = false;
                     isDeviceRegister = false;
                     oldPeerId = peerId;
+                    socketState = socketStateType.CLOSED;
 
                     // socketState = socketStateType.CLOSED;
                     //
@@ -239,7 +240,6 @@
 
                         logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
 
-                        socketState = socketStateType.CLOSED;
                         fireEvent('stateChange', {
                             socketState: socketState,
                             timeUntilReconnect: 1000 * retryStep.get(),
@@ -907,7 +907,9 @@
 
             // let tmpReconnectOnClose = reconnectOnClose;
             // reconnectOnClose = false;
-            reconnOnClose.setOld(reconnOnClose.get())
+            if(reconnOnClose.getOld() == null)
+                reconnOnClose.setOld(reconnOnClose.get());
+
             reconnOnClose.set(false);
             retryStep.set(0);
 
