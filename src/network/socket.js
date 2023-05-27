@@ -56,8 +56,7 @@
               config.timeoutIds.third = setTimeout(()=>{
                 logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
                 onCloseHandler(null);
-                if(socket)
-                  socket.close();
+                socket && socket.close();
               }, 2000);
             }, 2000);
           }, 8000);
@@ -108,7 +107,7 @@
               // if(socket.readyState !== 1) {
               logLevel.debug && console.debug("[Async][Socket.js] socketWatchTimeout triggered.");
               onCloseHandler(null);
-              socket.close();
+              socket && socket.close();
               // }
             }, 5000);
 
@@ -225,8 +224,7 @@
 
     this.close = function() {
       logLevel.debug && console.debug("[Async][Socket.js] Closing socket by call to this.close");
-      if(socket)
-        socket.close();
+      socket && socket.close();
       onCloseHandler(null);
       socketWatchTimeout && clearTimeout(socketWatchTimeout);
     }
