@@ -255,11 +255,12 @@ let dataChannelCallbacks = {
     },
 
     onmessage: function (event) {
-
         variables.pingController.resetPingLoop();
-        var messageData = JSON.parse(event.data);
-        console.log("[Async][WebRTC] Receive ", event.data);
-        eventCallback["message"](messageData);
+        decompressResponse(event.data).then(result => {
+            var messageData = JSON.parse(result);
+            console.log("[Async][WebRTC] Receive ", result);
+            eventCallback["message"](messageData);
+        });
     },
 
     onerror: function (error) {
@@ -470,5 +471,73 @@ let publicized = {
         resetVariables();
     }
 };
+
+
+/**
+ * Decompress results
+ */
+function decompress(byteArray, encoding) {
+    const cs = new DecompressionStream(encoding);
+    const writer = cs.writable.getWriter();
+    writer.write(byteArray);
+    writer.close();
+    return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
+        return new TextDecoder().decode(arrayBuffer);
+    });
+}
+
+async function decompressResponse(compressedData){
+    return await decompress(_base64UrlToArrayBuffer(compressedData), 'gzip');
+}
+
+//utility
+
+/**
+ * Array buffer to base64Url string
+ * - arrBuff->byte[]->biStr->b64->b64u
+ * @param arrayBuffer
+ * @returns {string}
+ * @private
+ */
+function _arrayBufferToBase64Url(arrayBuffer) {
+    console.log('base64Url from array buffer:', arrayBuffer);
+
+    let base64Url = window.btoa(String.fromCodePoint(...new Uint8Array(arrayBuffer)));
+    base64Url = base64Url.replaceAll('+', '-');
+    base64Url = base64Url.replaceAll('/', '_');
+
+    console.log('base64Url:', base64Url);
+    return base64Url;
+}
+
+/**
+ * Base64Url string to array buffer
+ * - b64u->b64->biStr->byte[]->arrBuff
+ * @param base64Url
+ * @returns {ArrayBufferLike}
+ * @private
+ */
+function _base64UrlToArrayBuffer(base64) {
+    console.log('array buffer from base64Url:', base64);
+    const binaryString = window.atob(base64);
+    const length = binaryString.length;
+    const bytes = new Uint8Array(length);
+    for (let i = 0; i < length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    console.log('array buffer:', bytes.buffer);
+    return bytes.buffer;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 module.exports = WebRTCClass;
