@@ -40,7 +40,8 @@
                 message: {},
                 asyncReady: {},
                 stateChange: {},
-                error: {}
+                error: {},
+                msgLogs: {}
             },
             ackCallback = {},
             socket,
@@ -203,6 +204,7 @@
                 });
 
                 socket.on('message', function (msg) {
+
                     handleSocketMessage(msg);
                     if (onReceiveLogging) {
                         asyncLogger('Receive', msg);
@@ -435,6 +437,12 @@
             },
 
             handleSocketMessage = function (msg) {
+                fireEvent("msgLogs", {
+                    msg,
+                    direction: "receive",
+                    time: new Date().getTime()
+                });
+
                 var ack;
 
                 if (msg.type === asyncMessageType.MESSAGE_ACK_NEEDED || msg.type === asyncMessageType.MESSAGE_SENDER_ACK_NEEDED) {
@@ -671,6 +679,12 @@
             },
 
             pushSendData = function (msg) {
+                fireEvent("msgLogs", {
+                    msg,
+                    direction: "send",
+                    time: new Date().getTime()
+                });
+
                 if (onSendLogging) {
                     asyncLogger('Send', msg);
                 }
