@@ -246,7 +246,7 @@ let dataChannelCallbacks = {
     });
   },
   onerror: function (error) {
-    logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
+    defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
     eventCallback["error"](event);
   },
   onclose: function (event) {
@@ -377,9 +377,9 @@ function resetVariables() {
   console.log("resetVariables");
   eventCallback["close"]();
   variables.pingController.stopPingLoop();
-  variables.dataChannel.close();
+  variables.dataChannel && variables.dataChannel.close();
   variables.dataChannel = null;
-  variables.peerConnection.close();
+  variables.peerConnection && variables.peerConnection.close();
   variables.peerConnection = null;
   variables.candidatesQueue = [];
   variables.clientId = null;

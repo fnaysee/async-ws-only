@@ -835,7 +835,7 @@
                     });
 
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-                    socket.close();
+                    socket && socket.close();
                     break;
                 case 'webrtc':
                     socketState = socketStateType.CLOSED;
@@ -848,7 +848,7 @@
                     });
 
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-                    webRTCClass.close();
+                    webRTCClass && webRTCClass.close();
 
                     break;
             }
@@ -878,7 +878,7 @@
                     reconnOnClose.set(false)
                     // reconnectOnClose = false;
 
-                    socket.close();
+                    socket && socket.close();
                     break;
                 case 'webrtc':
                     socketState = socketStateType.CLOSED;
@@ -891,7 +891,7 @@
                     });
                     reconnOnClose.set(false)
                     // reconnectOnClose = false;
-                    webRTCClass.close();
+                    webRTCClass && webRTCClass.close();
 
                     break;
             }
@@ -915,9 +915,9 @@
 
             socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
             if(protocol === "websocket")
-                socket.close();
+                socket && socket.close();
             else if(protocol == "webrtc")
-                webRTCClass.close()
+                webRTCClass && webRTCClass.close()
 
             // let tmpReconnectOnClose = reconnectOnClose;
             // reconnectOnClose = false;
