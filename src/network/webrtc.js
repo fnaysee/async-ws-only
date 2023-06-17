@@ -1,5 +1,7 @@
 let defaultConfig = {
-        baseUrl: "http://109.201.0.97/webrtc/",
+        protocol: "https",
+        baseUrl: "109.201.0.97",
+        basePath: "/webrtc/",
         registerEndpoint: "register/",
         addICEEndpoint: "add-ice/",
         getICEEndpoint: "get-ice/?",
@@ -26,7 +28,8 @@ let defaultConfig = {
             register: 3,
             getIce: 3,
             addIce: 5
-        }
+        },
+        subdomain: null
     };
 
 function CandidatesSendQueueManager() {
@@ -143,6 +146,7 @@ function connect() {
     function processRegisterResult(result) {
         variables.clientId = result.clientId;
         variables.deviceId = result.deviceId;
+        variables.subdomain = result.subDomain;
         webrtcFunctions.processAnswer(result.sdpAnswer);
     }
 }
@@ -274,12 +278,16 @@ let dataChannelCallbacks = {
     }
 }
 
+function getApiUrl() {
+    return (variables.subdomain ? variables.subdomain : defaultConfig.protocol + "://" + defaultConfig.baseUrl) + defaultConfig.basePath;
+}
+
 let handshakingFunctions = {
     register: function (offer) {
         let retries = variables.apiCallRetries.register;
         return new Promise(promiseHandler);
         function promiseHandler(resolve, reject) {
-            let registerEndPoint = defaultConfig.baseUrl + defaultConfig.registerEndpoint
+            let registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint
             fetch(registerEndPoint, {
                 method: "POST",
                 body: JSON.stringify({
@@ -314,7 +322,7 @@ let handshakingFunctions = {
         }
     },
     getCandidates: function (clientId) {
-        let addIceCandidateEndPoint = defaultConfig.baseUrl + defaultConfig.getICEEndpoint
+        let addIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint
         addIceCandidateEndPoint += "clientId=" + clientId;
 
         let retries = variables.apiCallRetries.getIce;
@@ -327,36 +335,36 @@ let handshakingFunctions = {
                     // 'Content-Type': 'application/x-www-form-urlencoded',
                 },
             })
-                .then(function (response) {
-                    if(response.ok)
-                        return response.json();
-                    else if(retries){
-                        retryTheRequest(resolve, reject);
-                        retries--;
-                    } else reject();
-                })
-                .then(function (result) {
-                    resolve(result.iceCandidates)
-                    // if(result.iceCandidates && result.iceCandidates.length) {
-                    //     // result.iceCandidates.forEach((item) => {
-                    //     //     webrtcFunctions.putCandidateToQueue(item);
-                    //     // });
-                    //     resolve(result.iceCandidates)
-                    // }
-                    // else {
-                    //     if(retries){
-                    //         retryTheRequest(resolve, reject);
-                    //         retries--;
-                    //     } else reject();
-                    // }
-                })
-                .catch(function (err) {
-                    if(retries){
-                        retryTheRequest(resolve, reject);
-                        retries--;
-                    } else reject(err);
-                    console.error(err);
-                });
+            .then(function (response) {
+                if(response.ok)
+                    return response.json();
+                else if(retries){
+                    retryTheRequest(resolve, reject);
+                    retries--;
+                } else reject();
+            })
+            .then(function (result) {
+                resolve(result.iceCandidates)
+                // if(result.iceCandidates && result.iceCandidates.length) {
+                //     // result.iceCandidates.forEach((item) => {
+                //     //     webrtcFunctions.putCandidateToQueue(item);
+                //     // });
+                //     resolve(result.iceCandidates)
+                // }
+                // else {
+                //     if(retries){
+                //         retryTheRequest(resolve, reject);
+                //         retries--;
+                //     } else reject();
+                // }
+            })
+            .catch(function (err) {
+                if(retries){
+                    retryTheRequest(resolve, reject);
+                    retries--;
+                } else reject(err);
+                console.error(err);
+            });
         }
 
         function retryTheRequest(resolve, reject){
@@ -365,7 +373,7 @@ let handshakingFunctions = {
 
     },
     sendCandidate: function (candidate) {
-        let addIceCandidateEndPoint = defaultConfig.baseUrl + defaultConfig.addICEEndpoint
+        let addIceCandidateEndPoint = getApiUrl() + defaultConfig.addICEEndpoint
             , retries = variables.apiCallRetries.addIce;
 
         return new Promise(promiseHandler);
@@ -412,6 +420,7 @@ eventCallback = {};
 function resetVariables() {
     console.log("resetVariables");
     eventCallback["close"]();
+    variables.subdomain = null;
     variables.pingController.stopPingLoop();
     variables.dataChannel && variables.dataChannel.close();
     variables.dataChannel = null;
@@ -442,6 +451,7 @@ function removeCallbacks(){
 
 function WebRTCClass({
     baseUrl,
+    basePath,
     configuration,
     connectionCheckTimeout = 10000,
     logLevel
@@ -449,6 +459,9 @@ function WebRTCClass({
     let config = {}
     if (baseUrl)
         config.baseUrl = baseUrl;
+    if (basePath)
+        config.basePath = basePath;
+
     if (configuration)
         config.configuration = configuration;
     if (connectionCheckTimeout)

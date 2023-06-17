@@ -320,6 +320,7 @@
             initWebrtc = function () {
                 webRTCClass = new WebRTCClass({
                     baseUrl: (webrtcConfig ? webrtcConfig.baseUrl : null),
+                    basePath: (webrtcConfig ? webrtcConfig.basePath : null),
                     configuration : (webrtcConfig ? webrtcConfig.configuration : null),
                     connectionCheckTimeout: params.connectionCheckTimeout,
                     logLevel: logLevel
