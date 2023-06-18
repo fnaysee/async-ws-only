@@ -1,4 +1,10 @@
-let defaultConfig = {
+"use strict";
+
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
+var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
+var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/asyncToGenerator"));
+var defaultConfig = {
     protocol: "https",
     baseUrl: "109.201.0.97",
     basePath: "/webrtc/",
@@ -33,10 +39,11 @@ let defaultConfig = {
       getIce: 3,
       addIce: 5
     },
+    eventCallback: {},
     subdomain: null
   };
 function CandidatesSendQueueManager() {
-  let config = {
+  var config = {
     candidatesToSend: [],
     alreadyReceivedServerCandidates: false,
     reCheckTimeout: null
@@ -47,7 +54,7 @@ function CandidatesSendQueueManager() {
       if (variables.peerConnection.signalingState === 'stable') {
         config.reCheckTimeout && clearTimeout(config.reCheckTimeout);
         if (config.candidatesToSend.length) {
-          let entry = config.candidatesToSend.shift();
+          var entry = config.candidatesToSend.shift();
           handshakingFunctions.sendCandidate(entry).then(function (result) {
             if (result.length) {
               addServerCandidates(result);
@@ -58,7 +65,7 @@ function CandidatesSendQueueManager() {
         } else if (!config.alreadyReceivedServerCandidates) {
           handshakingFunctions.getCandidates(variables.clientId).then(function (result) {
             addServerCandidates(result);
-          }).catch();
+          })["catch"]();
         }
       } else {
         config.reCheckTimeout && clearTimeout(config.reCheckTimeout);
@@ -67,22 +74,22 @@ function CandidatesSendQueueManager() {
     }
   }
   function addServerCandidates(candidates) {
-    for (let i in candidates) {
+    for (var i in candidates) {
       webrtcFunctions.putCandidateToQueue(candidates[i]);
     }
   }
   return {
-    add: function (candidate) {
+    add: function add(candidate) {
       config.candidatesToSend.push(candidate);
       trySendingCandidates();
     },
-    destroy: function () {
+    destroy: function destroy() {
       config.reCheckTimeout && clearTimeout(config.reCheckTimeout);
     }
   };
 }
 function PingManager(params) {
-  const config = {
+  var config = {
     normalWaitTime: params.waitTime,
     lastRequestTimeoutId: null,
     lastReceivedMessageTime: 0,
@@ -95,23 +102,23 @@ function PingManager(params) {
     }
   };
   return {
-    resetPingLoop() {
+    resetPingLoop: function resetPingLoop() {
       this.stopPingLoop();
       this.setPingTimeout();
     },
-    setPingTimeout() {
-      config.timeoutIds.first = setTimeout(() => {
+    setPingTimeout: function setPingTimeout() {
+      config.timeoutIds.first = setTimeout(function () {
         ping();
-        config.timeoutIds.second = setTimeout(() => {
+        config.timeoutIds.second = setTimeout(function () {
           ping();
-          config.timeoutIds.third = setTimeout(() => {
+          config.timeoutIds.third = setTimeout(function () {
             defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
             publicized.close();
           }, 2000);
         }, 2000);
       }, 8000);
     },
-    stopPingLoop() {
+    stopPingLoop: function stopPingLoop() {
       clearTimeout(config.timeoutIds.first);
       clearTimeout(config.timeoutIds.second);
       clearTimeout(config.timeoutIds.third);
@@ -125,8 +132,10 @@ function connect() {
   webrtcFunctions.createDataChannel();
   webrtcFunctions.generateSdpOffer().then(sendOfferToServer);
   function sendOfferToServer(offer) {
-    handshakingFunctions.register(offer.sdp).then(processRegisterResult).catch();
-    variables.peerConnection.setLocalDescription(offer).catch(error => console.error(error));
+    handshakingFunctions.register(offer.sdp).then(processRegisterResult)["catch"]();
+    variables.peerConnection.setLocalDescription(offer)["catch"](function (error) {
+      return console.error(error);
+    });
   }
   function processRegisterResult(result) {
     variables.clientId = result.clientId;
@@ -135,8 +144,8 @@ function connect() {
     webrtcFunctions.processAnswer(result.sdpAnswer);
   }
 }
-let webrtcFunctions = {
-  createPeerConnection: function () {
+var webrtcFunctions = {
+  createPeerConnection: function createPeerConnection() {
     variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
     variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
     variables.peerConnection.onicecandidate = function (event) {
@@ -146,13 +155,13 @@ let webrtcFunctions = {
       }
     };
   },
-  signalingStateChangeCallback: function () {
+  signalingStateChangeCallback: function signalingStateChangeCallback() {
     if (variables.peerConnection.signalingState === 'stable') {
       // handshakingFunctions.getCandidates().catch()
       webrtcFunctions.addTheCandidates();
     }
   },
-  createDataChannel: function () {
+  createDataChannel: function createDataChannel() {
     variables.dataChannel = variables.peerConnection.createDataChannel("dataChannel", {
       ordered: false
     });
@@ -161,32 +170,34 @@ let webrtcFunctions = {
     variables.dataChannel.onerror = dataChannelCallbacks.onerror;
     variables.dataChannel.onclose = dataChannelCallbacks.onclose;
   },
-  generateSdpOffer: function () {
+  generateSdpOffer: function generateSdpOffer() {
     return new Promise(function (resolve, reject) {
       variables.peerConnection.createOffer(function (offer) {
         resolve(offer);
       }, function (error) {
         reject(error);
         console.error(error);
-      }).then(r => console.log(r));
+      }).then(function (r) {
+        return console.log(r);
+      });
     });
   },
-  processAnswer: function (answer) {
-    let remoteDesc = {
+  processAnswer: function processAnswer(answer) {
+    var remoteDesc = {
       type: "answer",
       sdp: answer
     };
-    variables.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc)).catch(function (error) {
+    variables.peerConnection.setRemoteDescription(new RTCSessionDescription(remoteDesc))["catch"](function (error) {
       console.error(error);
     });
   },
-  addTheCandidates: function () {
+  addTheCandidates: function addTheCandidates() {
     while (variables.candidatesQueue.length) {
-      let entry = variables.candidatesQueue.shift();
+      var entry = variables.candidatesQueue.shift();
       variables.peerConnection.addIceCandidate(entry.candidate);
     }
   },
-  putCandidateToQueue: function (candidate) {
+  putCandidateToQueue: function putCandidateToQueue(candidate) {
     variables.candidatesQueue.push({
       candidate: new RTCIceCandidate(candidate)
     });
@@ -194,7 +205,7 @@ let webrtcFunctions = {
       webrtcFunctions.addTheCandidates();
     }
   },
-  sendData: function (params) {
+  sendData: function sendData(params) {
     if (!variables.dataChannel) {
       console.error("Connection is closed, do not send messages.");
       return;
@@ -216,7 +227,7 @@ let webrtcFunctions = {
         variables.dataChannel.send(JSON.stringify(data));
       }
     } catch (error) {
-      eventCallback["customError"]({
+      variables.eventCallback["customError"]({
         errorCode: 4004,
         errorMessage: "Error in Socket sendData!",
         errorEvent: error
@@ -224,12 +235,12 @@ let webrtcFunctions = {
     }
   }
 };
-let dataChannelCallbacks = {
-  onopen: function (event) {
+var dataChannelCallbacks = {
+  onopen: function onopen(event) {
     console.log("********* dataChannel open *********");
     variables.pingController.resetPingLoop();
-    eventCallback["open"]();
-    const deviceRegister = {
+    variables.eventCallback["open"]();
+    var deviceRegister = {
       "type": "2",
       "content": {
         "deviceId": variables.deviceId,
@@ -241,32 +252,32 @@ let dataChannelCallbacks = {
     deviceRegister.content = JSON.stringify(deviceRegister.content);
     variables.dataChannel.send(JSON.stringify(deviceRegister));
   },
-  onmessage: function (event) {
+  onmessage: function onmessage(event) {
     variables.pingController.resetPingLoop();
-    decompressResponse(event.data).then(result => {
+    decompressResponse(event.data).then(function (result) {
       var messageData = JSON.parse(result);
       console.log("[Async][WebRTC] Receive ", result);
-      eventCallback["message"](messageData);
+      variables.eventCallback["message"](messageData);
     });
   },
-  onerror: function (error) {
+  onerror: function onerror(error) {
     defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
-    eventCallback["error"](event);
+    variables.eventCallback["error"](event);
   },
-  onclose: function (event) {
+  onclose: function onclose(event) {
     resetVariables();
-    eventCallback["close"](event);
+    variables.eventCallback["close"](event);
   }
 };
 function getApiUrl() {
   return (variables.subdomain ? variables.subdomain : defaultConfig.protocol + "://" + defaultConfig.baseUrl) + defaultConfig.basePath;
 }
-let handshakingFunctions = {
-  register: function (offer) {
-    let retries = variables.apiCallRetries.register;
+var handshakingFunctions = {
+  register: function register(offer) {
+    var retries = variables.apiCallRetries.register;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
-      let registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint;
+      var registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint;
       fetch(registerEndPoint, {
         method: "POST",
         body: JSON.stringify({
@@ -281,7 +292,9 @@ let handshakingFunctions = {
           retryTheRequest(resolve, reject);
           retries--;
         } else reject();
-      }).then(result => resolve(result)).catch(err => {
+      }).then(function (result) {
+        return resolve(result);
+      })["catch"](function (err) {
         if (retries) {
           retryTheRequest(resolve, reject);
           retries--;
@@ -297,10 +310,10 @@ let handshakingFunctions = {
       }, 1000);
     }
   },
-  getCandidates: function (clientId) {
-    let addIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint;
+  getCandidates: function getCandidates(clientId) {
+    var addIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint;
     addIceCandidateEndPoint += "clientId=" + clientId;
-    let retries = variables.apiCallRetries.getIce;
+    var retries = variables.apiCallRetries.getIce;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
       fetch(addIceCandidateEndPoint, {
@@ -328,7 +341,7 @@ let handshakingFunctions = {
         //         retries--;
         //     } else reject();
         // }
-      }).catch(function (err) {
+      })["catch"](function (err) {
         if (retries) {
           retryTheRequest(resolve, reject);
           retries--;
@@ -342,8 +355,8 @@ let handshakingFunctions = {
       }, 1000);
     }
   },
-  sendCandidate: function (candidate) {
-    let addIceCandidateEndPoint = getApiUrl() + defaultConfig.addICEEndpoint,
+  sendCandidate: function sendCandidate(candidate) {
+    var addIceCandidateEndPoint = getApiUrl() + defaultConfig.addICEEndpoint,
       retries = variables.apiCallRetries.addIce;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
@@ -364,7 +377,7 @@ let handshakingFunctions = {
         } else reject();
       }).then(function (result) {
         resolve(result.iceCandidates);
-      }).catch(err => {
+      })["catch"](function (err) {
         if (retries) {
           retryTheRequest(resolve, reject);
           retries--;
@@ -379,10 +392,9 @@ let handshakingFunctions = {
     }
   }
 };
-eventCallback = {};
 function resetVariables() {
   console.log("resetVariables");
-  eventCallback["close"]();
+  variables.eventCallback["close"]();
   variables.subdomain = null;
   variables.pingController.stopPingLoop();
   variables.dataChannel && variables.dataChannel.close();
@@ -409,14 +421,14 @@ function removeCallbacks() {
     variables.dataChannel.onopen = null;
   }
 }
-function WebRTCClass({
-  baseUrl,
-  basePath,
-  configuration,
-  connectionCheckTimeout = 10000,
-  logLevel
-}) {
-  let config = {};
+function WebRTCClass(_ref) {
+  var baseUrl = _ref.baseUrl,
+    basePath = _ref.basePath,
+    configuration = _ref.configuration,
+    _ref$connectionCheckT = _ref.connectionCheckTimeout,
+    connectionCheckTimeout = _ref$connectionCheckT === void 0 ? 10000 : _ref$connectionCheckT,
+    logLevel = _ref.logLevel;
+  var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
   if (basePath) config.basePath = basePath;
   if (configuration) config.configuration = configuration;
@@ -426,13 +438,13 @@ function WebRTCClass({
   connect();
   return publicized;
 }
-let publicized = {
-  on: function (messageName, callback) {
-    eventCallback[messageName] = callback;
+var publicized = {
+  on: function on(messageName, callback) {
+    variables.eventCallback[messageName] = callback;
   },
   emit: webrtcFunctions.sendData,
   connect: connect,
-  close: function () {
+  close: function close() {
     removeCallbacks();
     resetVariables();
   }
@@ -442,20 +454,17 @@ let publicized = {
  * Decompress results
  */
 function decompress(byteArray, encoding) {
-  const cs = new DecompressionStream(encoding);
-  const writer = cs.writable.getWriter();
+  var cs = new DecompressionStream(encoding);
+  var writer = cs.writable.getWriter();
   writer.write(byteArray);
   writer.close();
   return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
     return new TextDecoder().decode(arrayBuffer);
   });
 }
-async function decompressResponse(compressedData) {
-  return await decompress(_base64UrlToArrayBuffer(compressedData), 'gzip');
-}
-
-//utility
-
+function decompressResponse(_x) {
+  return _decompressResponse.apply(this, arguments);
+} //utility
 /**
  * Array buffer to base64Url string
  * - arrBuff->byte[]->biStr->b64->b64u
@@ -463,9 +472,26 @@ async function decompressResponse(compressedData) {
  * @returns {string}
  * @private
  */
+function _decompressResponse() {
+  _decompressResponse = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee(compressedData) {
+    return _regenerator["default"].wrap(function _callee$(_context) {
+      while (1) switch (_context.prev = _context.next) {
+        case 0:
+          _context.next = 2;
+          return decompress(_base64UrlToArrayBuffer(compressedData), 'gzip');
+        case 2:
+          return _context.abrupt("return", _context.sent);
+        case 3:
+        case "end":
+          return _context.stop();
+      }
+    }, _callee);
+  }));
+  return _decompressResponse.apply(this, arguments);
+}
 function _arrayBufferToBase64Url(arrayBuffer) {
   console.log('base64Url from array buffer:', arrayBuffer);
-  let base64Url = window.btoa(String.fromCodePoint(...new Uint8Array(arrayBuffer)));
+  var base64Url = window.btoa(String.fromCodePoint.apply(String, (0, _toConsumableArray2["default"])(new Uint8Array(arrayBuffer))));
   base64Url = base64Url.replaceAll('+', '-');
   base64Url = base64Url.replaceAll('/', '_');
   console.log('base64Url:', base64Url);
@@ -481,10 +507,10 @@ function _arrayBufferToBase64Url(arrayBuffer) {
  */
 function _base64UrlToArrayBuffer(base64) {
   console.log('array buffer from base64Url:', base64);
-  const binaryString = window.atob(base64);
-  const length = binaryString.length;
-  const bytes = new Uint8Array(length);
-  for (let i = 0; i < length; i++) {
+  var binaryString = window.atob(base64);
+  var length = binaryString.length;
+  var bytes = new Uint8Array(length);
+  for (var i = 0; i < length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   console.log('array buffer:', bytes.buffer);

@@ -29,6 +29,7 @@ let defaultConfig = {
             getIce: 3,
             addIce: 5
         },
+        eventCallback: {},
         subdomain: null
     };
 
@@ -235,7 +236,7 @@ let webrtcFunctions = {
                 variables.dataChannel.send(JSON.stringify(data));
             }
         } catch (error) {
-            eventCallback["customError"]({
+            variables.eventCallback["customError"]({
                 errorCode: 4004,
                 errorMessage: "Error in Socket sendData!",
                 errorEvent: error
@@ -248,7 +249,7 @@ let dataChannelCallbacks = {
     onopen: function (event) {
         console.log("********* dataChannel open *********");
         variables.pingController.resetPingLoop();
-        eventCallback["open"]();
+        variables.eventCallback["open"]();
 
         const deviceRegister = {
             "type": "2",
@@ -264,17 +265,17 @@ let dataChannelCallbacks = {
         decompressResponse(event.data).then(result => {
             var messageData = JSON.parse(result);
             console.log("[Async][WebRTC] Receive ", result);
-            eventCallback["message"](messageData);
+            variables.eventCallback["message"](messageData);
         });
     },
 
     onerror: function (error) {
         defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
-        eventCallback["error"](event);
+        variables.eventCallback["error"](event);
     },
     onclose: function (event) {
         resetVariables();
-        eventCallback["close"](event);
+        variables.eventCallback["close"](event);
     }
 }
 
@@ -415,11 +416,10 @@ let handshakingFunctions = {
     }
 }
 
-eventCallback = {};
 
 function resetVariables() {
     console.log("resetVariables");
-    eventCallback["close"]();
+    variables.eventCallback["close"]();
     variables.subdomain = null;
     variables.pingController.stopPingLoop();
     variables.dataChannel && variables.dataChannel.close();
@@ -476,7 +476,7 @@ function WebRTCClass({
 
 let publicized = {
     on: function (messageName, callback) {
-        eventCallback[messageName] = callback;
+        variables.eventCallback[messageName] = callback;
     },
     emit: webrtcFunctions.sendData,
     connect: connect,

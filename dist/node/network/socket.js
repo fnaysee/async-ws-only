@@ -1,3 +1,5 @@
+"use strict";
+
 (function () {
   /*
    * Socket Module to connect and handle Socket functionalities
@@ -28,7 +30,7 @@
       }),
       socketWatchTimeout;
     function PingManager(params) {
-      const config = {
+      var config = {
         normalWaitTime: params.waitTime,
         lastRequestTimeoutId: null,
         lastReceivedMessageTime: 0,
@@ -42,16 +44,16 @@
       };
 
       return {
-        resetPingLoop() {
+        resetPingLoop: function resetPingLoop() {
           this.stopPingLoop();
           this.setPingTimeout();
         },
-        setPingTimeout() {
-          config.timeoutIds.first = setTimeout(() => {
+        setPingTimeout: function setPingTimeout() {
+          config.timeoutIds.first = setTimeout(function () {
             ping();
-            config.timeoutIds.second = setTimeout(() => {
+            config.timeoutIds.second = setTimeout(function () {
               ping();
-              config.timeoutIds.third = setTimeout(() => {
+              config.timeoutIds.third = setTimeout(function () {
                 logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
                 onCloseHandler(null);
                 socket && socket.close();
@@ -59,7 +61,7 @@
             }, 2000);
           }, 8000);
         },
-        stopPingLoop() {
+        stopPingLoop: function stopPingLoop() {
           clearTimeout(config.timeoutIds.first);
           clearTimeout(config.timeoutIds.second);
           clearTimeout(config.timeoutIds.third);
@@ -72,10 +74,10 @@
      *            P R I V A T E   M E T H O D S            *
      *******************************************************/
 
-    var init = function () {
+    var init = function init() {
         connect();
       },
-      connect = function () {
+      connect = function connect() {
         try {
           if (socket && socket.readyState == 1) {
             return;
@@ -99,7 +101,7 @@
            * Watches the socket to make sure it's state changes to 1 in 5 seconds
            */
           socketWatchTimeout && clearTimeout(socketWatchTimeout);
-          socketWatchTimeout = setTimeout(() => {
+          socketWatchTimeout = setTimeout(function () {
             // if(socket.readyState !== 1) {
             logLevel.debug && console.debug("[Async][Socket.js] socketWatchTimeout triggered.");
             onCloseHandler(null);
@@ -137,7 +139,7 @@
           });
         }
       },
-      onCloseHandler = function (event) {
+      onCloseHandler = function onCloseHandler(event) {
         pingController.stopPingLoop();
         if (socket) {
           socket.onclose = null;
@@ -148,12 +150,12 @@
         }
         eventCallback["close"](event);
       },
-      ping = function () {
+      ping = function ping() {
         sendData({
           type: 0
         });
       },
-      waitForSocketToConnect = function (callback) {
+      waitForSocketToConnect = function waitForSocketToConnect(callback) {
         waitForSocketToConnectTimeoutId && clearTimeout(waitForSocketToConnectTimeoutId);
         if (socket.readyState === 1) {
           callback();
@@ -167,7 +169,7 @@
           }, wsConnectionWaitTime);
         }
       },
-      sendData = function (params) {
+      sendData = function sendData(params) {
         var data = {
           type: params.type,
           uniqueId: params.uniqueId

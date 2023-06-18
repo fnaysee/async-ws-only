@@ -1,4 +1,4 @@
-(function() {
+
   /**
    * General Utilities
    */
@@ -221,4 +221,4 @@
     }
     window.POD.AsyncUtility = Utility;
   }
-})();
+

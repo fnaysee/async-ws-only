@@ -1,5 +1,7 @@
+"use strict";
+
 function LogLevel(logLevel) {
-  let ll = logLevel || 2;
+  var ll = logLevel || 2;
   switch (ll) {
     case 1:
       return {

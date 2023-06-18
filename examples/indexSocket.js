@@ -1,4 +1,5 @@
-var Async = require('../src/network/async.js');
+//var Async = require('../src/network/async.js');
+import Async from "../src/network/async.js";
 
 var params = {
     socketAddress: 'ws://172.16.110.131:8003/ws', // {**REQUIRED**} Socket Address
