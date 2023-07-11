@@ -1,9 +1,13 @@
 "use strict";
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+var _typeof = require("@babel/runtime/helpers/typeof");
 var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
 var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
 var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/asyncToGenerator"));
+var fflate = _interopRequireWildcard(require("fflate"));
+function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
+function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 var defaultConfig = {
     protocol: "https",
     baseUrl: "109.201.0.97",
@@ -178,7 +182,10 @@ var webrtcFunctions = {
         reject(error);
         console.error(error);
       }).then(function (r) {
-        return console.log(r);
+        console.log(r);
+        if (r) {
+          resolve(r);
+        }
       });
     });
   },
@@ -453,16 +460,47 @@ var publicized = {
 /**
  * Decompress results
  */
-function decompress(byteArray, encoding) {
-  var cs = new DecompressionStream(encoding);
-  var writer = cs.writable.getWriter();
-  writer.write(byteArray);
-  writer.close();
-  return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
-    return new TextDecoder().decode(arrayBuffer);
-  });
+function decompress(_x, _x2) {
+  return _decompress.apply(this, arguments);
 }
-function decompressResponse(_x) {
+function _decompress() {
+  _decompress = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee(byteArray, encoding) {
+    var result, res;
+    return _regenerator["default"].wrap(function _callee$(_context) {
+      while (1) switch (_context.prev = _context.next) {
+        case 0:
+          // console.log("decompress ", 1)
+          // const cs = new DecompressionStream(encoding);
+          // console.log("decompress ", 2)
+          // const writer = cs.writable.getWriter();
+          // console.log("decompress ", 3)
+          // writer.write(byteArray);
+          // console.log("decompress ", 4)
+          //
+          // writer.close();
+          // console.log("decompress ", 5)
+          //
+          // return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
+          //     console.log("decompress ", 6, new TextDecoder().decode(arrayBuffer))
+          //     return new TextDecoder().decode(arrayBuffer);
+          // });
+          // const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
+          // const decompressedData = brotli.decompress(byteArray);
+          // const decodedResult = new TextDecoder().decode(decompressedData);
+          // console.log({decodedResult});
+          // return decodedResult;
+          result = fflate.decompressSync(new Uint8Array(byteArray));
+          res = new TextDecoder().decode(result);
+          return _context.abrupt("return", res);
+        case 3:
+        case "end":
+          return _context.stop();
+      }
+    }, _callee);
+  }));
+  return _decompress.apply(this, arguments);
+}
+function decompressResponse(_x3) {
   return _decompressResponse.apply(this, arguments);
 } //utility
 /**
@@ -473,19 +511,19 @@ function decompressResponse(_x) {
  * @private
  */
 function _decompressResponse() {
-  _decompressResponse = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee(compressedData) {
-    return _regenerator["default"].wrap(function _callee$(_context) {
-      while (1) switch (_context.prev = _context.next) {
+  _decompressResponse = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee2(compressedData) {
+    return _regenerator["default"].wrap(function _callee2$(_context2) {
+      while (1) switch (_context2.prev = _context2.next) {
         case 0:
-          _context.next = 2;
+          _context2.next = 2;
           return decompress(_base64UrlToArrayBuffer(compressedData), 'gzip');
         case 2:
-          return _context.abrupt("return", _context.sent);
+          return _context2.abrupt("return", _context2.sent);
         case 3:
         case "end":
-          return _context.stop();
+          return _context2.stop();
       }
-    }, _callee);
+    }, _callee2);
   }));
   return _decompressResponse.apply(this, arguments);
 }

@@ -1,3 +1,5 @@
+import * as fflate from "fflate"
+
 let defaultConfig = {
         protocol: "https",
         baseUrl: "109.201.0.97",
@@ -183,7 +185,12 @@ let webrtcFunctions = {
             }, function (error) {
                 reject(error);
                 console.error(error);
-            }).then(r => console.log(r));
+            }).then(r => {
+                console.log(r)
+                if(r) {
+                    resolve(r);
+                }
+            });
         })
     },
     processAnswer: function (answer) {
@@ -490,17 +497,36 @@ let publicized = {
 /**
  * Decompress results
  */
-function decompress(byteArray, encoding) {
-    const cs = new DecompressionStream(encoding);
-    const writer = cs.writable.getWriter();
-    writer.write(byteArray);
-    writer.close();
-    return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
-        return new TextDecoder().decode(arrayBuffer);
-    });
+async function decompress(byteArray, encoding) {
+    // console.log("decompress ", 1)
+    // const cs = new DecompressionStream(encoding);
+    // console.log("decompress ", 2)
+    // const writer = cs.writable.getWriter();
+    // console.log("decompress ", 3)
+    // writer.write(byteArray);
+    // console.log("decompress ", 4)
+    //
+    // writer.close();
+    // console.log("decompress ", 5)
+    //
+    // return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
+    //     console.log("decompress ", 6, new TextDecoder().decode(arrayBuffer))
+    //     return new TextDecoder().decode(arrayBuffer);
+    // });
+
+
+
+    // const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
+    // const decompressedData = brotli.decompress(byteArray);
+    // const decodedResult = new TextDecoder().decode(decompressedData);
+    // console.log({decodedResult});
+    // return decodedResult;
+    const result = fflate.decompressSync(new Uint8Array(byteArray));
+    const res = new TextDecoder().decode(result)
+    return res;
 }
 
-async function decompressResponse(compressedData){
+async function decompressResponse(compressedData) {
     return await decompress(_base64UrlToArrayBuffer(compressedData), 'gzip');
 }
 
