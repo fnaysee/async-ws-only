@@ -44,7 +44,8 @@ var defaultConfig = {
       addIce: 5
     },
     eventCallback: {},
-    subdomain: null
+    subdomain: null,
+    isDestroyed: false
   };
 function CandidatesSendQueueManager() {
   var config = {
@@ -133,24 +134,16 @@ function PingManager(params) {
 
 function connect() {
   webrtcFunctions.createPeerConnection();
-  webrtcFunctions.createDataChannel();
-  webrtcFunctions.generateSdpOffer().then(sendOfferToServer);
-  function sendOfferToServer(offer) {
-    handshakingFunctions.register(offer.sdp).then(processRegisterResult)["catch"]();
-    variables.peerConnection.setLocalDescription(offer)["catch"](function (error) {
-      return console.error(error);
-    });
-  }
-  function processRegisterResult(result) {
-    variables.clientId = result.clientId;
-    variables.deviceId = result.deviceId;
-    variables.subdomain = result.subDomain;
-    webrtcFunctions.processAnswer(result.sdpAnswer);
-  }
 }
 var webrtcFunctions = {
   createPeerConnection: function createPeerConnection() {
-    variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+    try {
+      variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+    } catch (error) {
+      publicized.close();
+      console.error("Webrtc Peer Create Error: ", error.message);
+      return;
+    }
     variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
     variables.peerConnection.onicecandidate = function (event) {
       if (event.candidate) {
@@ -158,6 +151,20 @@ var webrtcFunctions = {
         webrtcFunctions.putCandidateToQueue(event.candidate);
       }
     };
+    webrtcFunctions.createDataChannel();
+    webrtcFunctions.generateSdpOffer().then(sendOfferToServer);
+    function sendOfferToServer(offer) {
+      handshakingFunctions.register(offer.sdp).then(processRegisterResult)["catch"]();
+      variables.peerConnection.setLocalDescription(offer)["catch"](function (error) {
+        return console.error(error);
+      });
+    }
+    function processRegisterResult(result) {
+      variables.clientId = result.clientId;
+      variables.deviceId = result.deviceId;
+      variables.subdomain = result.subDomain;
+      webrtcFunctions.processAnswer(result.sdpAnswer);
+    }
   },
   signalingStateChangeCallback: function signalingStateChangeCallback() {
     if (variables.peerConnection.signalingState === 'stable') {
@@ -236,7 +243,7 @@ var webrtcFunctions = {
     } catch (error) {
       variables.eventCallback["customError"]({
         errorCode: 4004,
-        errorMessage: "Error in Socket sendData!",
+        errorMessage: "Error in channel send message!",
         errorEvent: error
       });
     }
@@ -269,11 +276,11 @@ var dataChannelCallbacks = {
   },
   onerror: function onerror(error) {
     defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
-    variables.eventCallback["error"](event);
+    variables.eventCallback["error"]();
+    publicized.close();
   },
   onclose: function onclose(event) {
-    resetVariables();
-    variables.eventCallback["close"](event);
+    publicized.close();
   }
 };
 function getApiUrl() {
@@ -400,8 +407,6 @@ var handshakingFunctions = {
   }
 };
 function resetVariables() {
-  console.log("resetVariables");
-  variables.eventCallback["close"]();
   variables.subdomain = null;
   variables.pingController.stopPingLoop();
   variables.dataChannel && variables.dataChannel.close();
@@ -413,6 +418,10 @@ function resetVariables() {
   variables.deviceId = null;
   variables.candidateManager.destroy();
   variables.candidateManager = new CandidatesSendQueueManager();
+  variables.isDestroyed = false;
+  if (!variables.isDestroyed && variables.eventCallback["close"]) {
+    variables.eventCallback["close"]();
+  }
 }
 function ping() {
   webrtcFunctions.sendData({
@@ -442,7 +451,6 @@ function WebRTCClass(_ref) {
   if (connectionCheckTimeout) config.connectionCheckTimeout = connectionCheckTimeout;
   if (logLevel) config.logLevel = logLevel;
   defaultConfig = Object.assign(defaultConfig, config);
-  connect();
   return publicized;
 }
 var publicized = {
@@ -454,6 +462,12 @@ var publicized = {
   close: function close() {
     removeCallbacks();
     resetVariables();
+  },
+  destroy: function destroy() {
+    variables.isDestroyed = true;
+    for (var i in variables.eventCallback) {
+      delete variables.eventCallback[i];
+    }
   }
 };
 

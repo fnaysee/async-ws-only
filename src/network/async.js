@@ -45,7 +45,9 @@ function Async(params) {
             asyncReady: {},
             stateChange: {},
             error: {},
-            msgLogs: {}
+            msgLogs: {},
+            reconnecting: {},
+            asyncDestroyed: {}
         },
         ackCallback = {},
         socket,
@@ -99,16 +101,8 @@ function Async(params) {
             : false,
         onSendLogging = (params.asyncLogging && typeof params.asyncLogging.onMessageSend === 'boolean') ? params.asyncLogging.onMessageSend : false,
         workerId = (params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number') ? params.asyncLogging.workerId : 0,
-        webrtcConfig = (params.webrtcConfig ? params.webrtcConfig : null);
-
-    // function setRetryStep(val){
-    //     console.log("new retryStep value:", val);
-    //     retryStep = val;
-    // }
-    //
-    // function getRetryStep() {
-    //     return retryStep;
-    // }
+        webrtcConfig = (params.webrtcConfig ? params.webrtcConfig : null),
+        isLoggedOut = false;
 
     const reconnOnClose = {
         value: false,
@@ -192,6 +186,7 @@ function Async(params) {
             socket.on('open', function () {
                 checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
                 socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                socketReconnectRetryInterval = null;
                 socketReconnectCheck && clearTimeout(socketReconnectCheck);
 
                 isSocketOpen = true;
@@ -255,9 +250,15 @@ function Async(params) {
                     });
 
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-
+                    socketReconnectRetryInterval = null;
                     socketReconnectRetryInterval = setTimeout(function () {
+                        if(isLoggedOut)
+                            return;
+
                         socket.connect();
+                        setTimeout(()=>{
+                            fireEvent("reconnecting");
+                        }, 5);
                     }, 1000 * retryStep.get());
 
                     if (retryStep.get() < 64) {
@@ -287,6 +288,7 @@ function Async(params) {
                 }
                 else {
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                    socketReconnectRetryInterval = null;
                     socketReconnectCheck && clearTimeout(socketReconnectCheck);
                     fireEvent('error', {
                         errorCode: 4005,
@@ -320,6 +322,8 @@ function Async(params) {
                     errorEvent: error
                 });
             });
+
+            socket.connect();
         },
         initWebrtc = function () {
             webRTCClass = new WebRTCClass({
@@ -341,7 +345,9 @@ function Async(params) {
 
             webRTCClass.on('open', function () {
                 checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
+                checkIfSocketHasOpennedTimeoutId = null
                 socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                socketReconnectRetryInterval = null;
                 socketReconnectCheck && clearTimeout(socketReconnectCheck);
 
                 isSocketOpen = true;
@@ -358,7 +364,6 @@ function Async(params) {
             });
 
             webRTCClass.on('message', function (msg) {
-                console.log({msg})
                 handleSocketMessage(msg);
                 if (onReceiveLogging) {
                     asyncLogger('Receive', msg);
@@ -372,7 +377,7 @@ function Async(params) {
 
                 fireEvent('disconnect', event);
 
-                if (reconnOnClose.get()) {
+                if (reconnOnClose.get()|| reconnOnClose.getOld()) {
                     if (asyncLogging) {
                         if (workerId > 0) {
                             Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
@@ -394,8 +399,12 @@ function Async(params) {
                     });
 
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                    socketReconnectRetryInterval = null;
 
                     socketReconnectRetryInterval = setTimeout(function () {
+                        if(isLoggedOut)
+                            return;
+
                         webRTCClass.connect();
                     }, 1000 * retryStep.get());
 
@@ -406,6 +415,7 @@ function Async(params) {
                 }
                 else {
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                    socketReconnectRetryInterval = null;
                     socketReconnectCheck && clearTimeout(socketReconnectCheck);
                     fireEvent('error', {
                         errorCode: 4005,
@@ -439,6 +449,8 @@ function Async(params) {
                     errorEvent: error
                 });
             });
+
+            webRTCClass.connect();
         },
 
         handleSocketMessage = function (msg) {
@@ -717,9 +729,13 @@ function Async(params) {
 
         clearTimeouts = function () {
             registerDeviceTimeoutId && clearTimeout(registerDeviceTimeoutId);
+            registerDeviceTimeoutId = null;
             registerServerTimeoutId && clearTimeout(registerServerTimeoutId);
+            registerServerTimeoutId = null;
             checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
+            checkIfSocketHasOpennedTimeoutId = null;
             socketReconnectCheck && clearTimeout(socketReconnectCheck);
+            socketReconnectCheck = null;
         },
 
         pushSendDataQueueHandler = function () {
@@ -840,6 +856,7 @@ function Async(params) {
                 });
 
                 socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                socketReconnectRetryInterval = null;
                 socket && socket.close();
                 break;
             case 'webrtc':
@@ -853,6 +870,7 @@ function Async(params) {
                 });
 
                 socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+                socketReconnectRetryInterval = null;
                 webRTCClass && webRTCClass.close();
 
                 break;
@@ -860,6 +878,12 @@ function Async(params) {
     };
 
     this.logout = function () {
+        isLoggedOut = true;
+        socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+        socketReconnectRetryInterval = null;
+        reconnectSocketTimeout && clearTimeout(socketReconnectRetryInterval);
+        reconnectSocketTimeout = null;
+
         oldPeerId = peerId;
         peerId = undefined;
         isServerRegister = false;
@@ -883,7 +907,10 @@ function Async(params) {
                 reconnOnClose.set(false)
                 // reconnectOnClose = false;
 
-                socket && socket.close();
+                if(socket) {
+                    socket.destroy();
+                    socket.close();
+                }
                 break;
             case 'webrtc':
                 socketState = socketStateType.CLOSED;
@@ -896,10 +923,23 @@ function Async(params) {
                 });
                 reconnOnClose.set(false)
                 // reconnectOnClose = false;
-                webRTCClass && webRTCClass.close();
+                if(webRTCClass) {
+                    webRTCClass.destroy();
+                    webRTCClass.close();
+                }
 
                 break;
         }
+
+        setTimeout(()=>{
+            fireEvent("asyncDestroyed");
+
+            setTimeout(()=>{
+                for (let i in eventCallbacks) {
+                    delete eventCallbacks[i];
+                }
+            }, 2)
+        }, 20)
     };
 
     let reconnectSocketTimeout;
@@ -919,10 +959,13 @@ function Async(params) {
         });
 
         socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+        socketReconnectRetryInterval = null;
         if(protocol === "websocket")
             socket && socket.close();
-        else if(protocol == "webrtc")
-            webRTCClass && webRTCClass.close()
+        else if(protocol == "webrtc"){
+            webRTCClass && webRTCClass.close();
+        }
+
 
         // let tmpReconnectOnClose = reconnectOnClose;
         // reconnectOnClose = false;
@@ -932,21 +975,26 @@ function Async(params) {
         reconnOnClose.set(false);
         retryStep.set(0);
 
-        if(protocol === "websocket")
+        if(protocol === "websocket"){
             socket.connect();
+        }
         else if(protocol == "webrtc")
             webRTCClass.connect()
 
         reconnectSocketTimeout && clearTimeout(reconnectSocketTimeout);
+        reconnectSocketTimeout = null;
         reconnectSocketTimeout = setTimeout(function () {
+            if(isLoggedOut)
+                return;
             // retryStep = 4;
             retryStep.set(0);
             // reconnectOnClose = tmpReconnectOnClose;
             reconnOnClose.set(reconnOnClose.getOld());
 
             if(socketState != socketStateType.OPEN){
-                if(protocol === "websocket")
+                if(protocol === "websocket"){
                     socket.connect();
+                }
                 else if(protocol == "webrtc")
                     webRTCClass.connect()
             }

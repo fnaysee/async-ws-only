@@ -32,7 +32,8 @@ let defaultConfig = {
             addIce: 5
         },
         eventCallback: {},
-        subdomain: null
+        subdomain: null,
+        isDestroyed: false
     };
 
 function CandidatesSendQueueManager() {
@@ -132,31 +133,18 @@ function PingManager(params) {
 
 function connect() {
     webrtcFunctions.createPeerConnection();
-    webrtcFunctions.createDataChannel();
-    webrtcFunctions.generateSdpOffer()
-        .then(sendOfferToServer);
-
-    function sendOfferToServer(offer) {
-        handshakingFunctions
-            .register(offer.sdp)
-            .then(processRegisterResult).catch();
-
-        variables
-            .peerConnection.setLocalDescription(offer)
-            .catch(error => console.error(error));
-    }
-
-    function processRegisterResult(result) {
-        variables.clientId = result.clientId;
-        variables.deviceId = result.deviceId;
-        variables.subdomain = result.subDomain;
-        webrtcFunctions.processAnswer(result.sdpAnswer);
-    }
 }
 
 let webrtcFunctions = {
     createPeerConnection: function () {
-        variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+        try {
+            variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+        } catch (error) {
+            publicized.close();
+            console.error("Webrtc Peer Create Error: ", error.message);
+            return
+        }
+
         variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
         variables.peerConnection.onicecandidate = function (event) {
             if (event.candidate) {
@@ -164,6 +152,27 @@ let webrtcFunctions = {
                 webrtcFunctions.putCandidateToQueue(event.candidate);
             }
         };
+
+        webrtcFunctions.createDataChannel();
+        webrtcFunctions.generateSdpOffer()
+            .then(sendOfferToServer);
+
+        function sendOfferToServer(offer) {
+            handshakingFunctions
+                .register(offer.sdp)
+                .then(processRegisterResult).catch();
+
+            variables
+                .peerConnection.setLocalDescription(offer)
+                .catch(error => console.error(error));
+        }
+
+        function processRegisterResult(result) {
+            variables.clientId = result.clientId;
+            variables.deviceId = result.deviceId;
+            variables.subdomain = result.subDomain;
+            webrtcFunctions.processAnswer(result.sdpAnswer);
+        }
     },
     signalingStateChangeCallback: function () {
         if (variables.peerConnection.signalingState === 'stable') {
@@ -245,7 +254,7 @@ let webrtcFunctions = {
         } catch (error) {
             variables.eventCallback["customError"]({
                 errorCode: 4004,
-                errorMessage: "Error in Socket sendData!",
+                errorMessage: "Error in channel send message!",
                 errorEvent: error
             });
         }
@@ -278,11 +287,11 @@ let dataChannelCallbacks = {
 
     onerror: function (error) {
         defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
-        variables.eventCallback["error"](event);
+        variables.eventCallback["error"]();
+        publicized.close();
     },
     onclose: function (event) {
-        resetVariables();
-        variables.eventCallback["close"](event);
+        publicized.close();
     }
 }
 
@@ -425,8 +434,6 @@ let handshakingFunctions = {
 
 
 function resetVariables() {
-    console.log("resetVariables");
-    variables.eventCallback["close"]();
     variables.subdomain = null;
     variables.pingController.stopPingLoop();
     variables.dataChannel && variables.dataChannel.close();
@@ -437,7 +444,11 @@ function resetVariables() {
     variables.clientId = null;
     variables.deviceId = null;
     variables.candidateManager.destroy();
-    variables.candidateManager = new CandidatesSendQueueManager()
+    variables.candidateManager = new CandidatesSendQueueManager();
+    variables.isDestroyed = false;
+    if(!variables.isDestroyed && variables.eventCallback["close"]){
+        variables.eventCallback["close"]();
+    }
 }
 
 function ping() {
@@ -477,7 +488,6 @@ function WebRTCClass({
         config.logLevel = logLevel;
 
     defaultConfig = Object.assign(defaultConfig, config);
-    connect();
     return publicized;
 }
 
@@ -490,6 +500,12 @@ let publicized = {
     close: function () {
         removeCallbacks();
         resetVariables();
+    },
+    destroy(){
+        variables.isDestroyed = true;
+        for (let i in variables.eventCallback) {
+            delete variables.eventCallback[i];
+        }
     }
 };
 

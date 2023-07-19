@@ -25,7 +25,23 @@
         socketRealTimeStatusInterval,
         logLevel = params.logLevel,
         pingController = new PingManager({waitTime: connectionCheckTimeout}),
-        socketWatchTimeout;
+        socketWatchTimeout,
+        isDestroyed = false,
+        closeCodes = {
+            PING_FAILED: {
+              code: 4900,
+              reason: "Ping with server failed"
+            },
+            REQUEST_FROM_ASYNC_CLASS: {
+              code: 4901,
+              reason: "Close by sdk"
+            },
+          CONNECTION_OPEN_TIMEOUT: {
+            code: 4902,
+            reason: "Connection didn't open after a long time"
+          },
+
+        };
 
 
     function PingManager(params) {
@@ -56,7 +72,8 @@
               config.timeoutIds.third = setTimeout(()=>{
                 logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
                 onCloseHandler(null);
-                socket && socket.close();
+                // socket && socket.close();
+                closeTheSocket(closeCodes.PING_FAILED);
               }, 2000);
             }, 2000);
           }, 8000);
@@ -74,11 +91,7 @@
      *            P R I V A T E   M E T H O D S            *
      *******************************************************/
 
-    var init = function() {
-          connect();
-        },
-
-        connect = function() {
+    var connect = function() {
           try {
             if (socket && socket.readyState == 1) {
               return;
@@ -107,36 +120,54 @@
               // if(socket.readyState !== 1) {
               logLevel.debug && console.debug("[Async][Socket.js] socketWatchTimeout triggered.");
               onCloseHandler(null);
-              socket && socket.close();
+              // socket && socket.close();
+              closeTheSocket(closeCodes.CONNECTION_OPEN_TIMEOUT);
               // }
             }, 5000);
 
             socket.onopen = function(event) {
-              waitForSocketToConnect(function() {
-                pingController.resetPingLoop();
-                eventCallback["open"]();
-                socketWatchTimeout && clearTimeout(socketWatchTimeout);
-              });
+              if(eventCallback["message"]) {
+                waitForSocketToConnect(function () {
+                  pingController.resetPingLoop();
+                  eventCallback["open"]();
+                  socketWatchTimeout && clearTimeout(socketWatchTimeout);
+                });
+              } else {
+                onCloseHandler();
+                closeTheSocket();
+
+              }
             }
 
             socket.onmessage = function(event) {
-              pingController.resetPingLoop();
+              if(eventCallback["message"]) {
+                pingController.resetPingLoop();
 
-              var messageData = JSON.parse(event.data);
-              eventCallback["message"](messageData);
+                var messageData = JSON.parse(event.data);
+                eventCallback["message"](messageData);
+              } else {
+                onCloseHandler();
+                closeTheSocket();
+
+              }
             }
 
             socket.onclose = function(event) {
               pingController.stopPingLoop();
               logLevel.debug && console.debug("[Async][Socket.js] socket.onclose happened. EventData:", event);
               onCloseHandler(event);
+              closeTheSocket();
               socketWatchTimeout && clearTimeout(socketWatchTimeout);
             }
 
             socket.onerror = function(event) {
               logLevel.debug && console.debug("[Async][Socket.js] socket.onerror happened. EventData:", event);
-              eventCallback["error"](event);
-              socketWatchTimeout && clearTimeout(socketWatchTimeout);
+              if(eventCallback["error"]){
+                eventCallback["error"](event);
+                onCloseHandler();
+                closeTheSocket();
+                socketWatchTimeout && clearTimeout(socketWatchTimeout);
+              }
             }
           } catch (error) {
             eventCallback["customError"]({
@@ -156,7 +187,6 @@
             socket.onopen = null;
             socket = null;
           }
-          eventCallback["close"](event);
         },
 
         ping = function() {
@@ -224,12 +254,42 @@
 
     this.close = function() {
       logLevel.debug && console.debug("[Async][Socket.js] Closing socket by call to this.close");
-      socket && socket.close();
+      // socket && socket.close();
       onCloseHandler(null);
+      closeTheSocket(closeCodes.REQUEST_FROM_ASYNC_CLASS);
       socketWatchTimeout && clearTimeout(socketWatchTimeout);
     }
 
-    init();
+    this.destroy = function (){
+      isDestroyed = true;
+      for (let i in eventCallback) {
+         eventCallback[i] = undefined;
+      }
+    }
+
+    function closeTheSocket(reason) {
+      if(socket) {
+        function socketCloseErrorHandler(err) {
+          console.error('Socket Close Error: ', err);
+        }
+
+        socket.on('error', socketCloseErrorHandler);
+        setTimeout(()=> {
+          if(socket) {
+            if(reason)
+              socket.close(reason.code, reason.reason);
+            else
+              socket.close();
+
+            socket.off("error", socketCloseErrorHandler)
+          }
+        }, 20);
+      }
+
+      if(!isDestroyed && eventCallback["close"]){
+        eventCallback["close"]();
+      }
+    }
   }
 
   if (typeof module !== 'undefined' && typeof module.exports != "undefined") {
