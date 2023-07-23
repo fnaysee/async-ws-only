@@ -133,6 +133,7 @@ function PingManager(params) {
 }
 
 function connect() {
+  variables.isDestroyed = false;
   webrtcFunctions.createPeerConnection();
 }
 var webrtcFunctions = {
@@ -291,6 +292,7 @@ var handshakingFunctions = {
     var retries = variables.apiCallRetries.register;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
+      if (variables.isDestroyed) return;
       var registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint;
       fetch(registerEndPoint, {
         method: "POST",
@@ -325,12 +327,13 @@ var handshakingFunctions = {
     }
   },
   getCandidates: function getCandidates(clientId) {
-    var addIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint;
-    addIceCandidateEndPoint += "clientId=" + clientId;
+    var getIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint;
+    getIceCandidateEndPoint += "clientId=" + clientId;
     var retries = variables.apiCallRetries.getIce;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
-      fetch(addIceCandidateEndPoint, {
+      if (variables.isDestroyed) return;
+      fetch(getIceCandidateEndPoint, {
         method: "GET",
         headers: {
           "Content-Type": "application/json"
@@ -374,6 +377,7 @@ var handshakingFunctions = {
       retries = variables.apiCallRetries.addIce;
     return new Promise(promiseHandler);
     function promiseHandler(resolve, reject) {
+      if (variables.isDestroyed) return;
       fetch(addIceCandidateEndPoint, {
         method: "POST",
         body: JSON.stringify({
@@ -418,7 +422,7 @@ function resetVariables() {
   variables.deviceId = null;
   variables.candidateManager.destroy();
   variables.candidateManager = new CandidatesSendQueueManager();
-  variables.isDestroyed = false;
+  // variables.isDestroyed = false;
   if (!variables.isDestroyed && variables.eventCallback["close"]) {
     variables.eventCallback["close"]();
   }

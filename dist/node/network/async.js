@@ -41,6 +41,7 @@ function Async(params) {
   var protocol = params.protocol || 'websocket',
     appId = params.appId || 'PodChat',
     deviceId = params.deviceId,
+    retryStepTimerTime = typeof params.retryStepTimerTime != "undefined" ? params.retryStepTimerTime : 0,
     eventCallbacks = {
       connect: {},
       disconnect: {},
@@ -107,7 +108,8 @@ function Async(params) {
     onSendLogging = params.asyncLogging && typeof params.asyncLogging.onMessageSend === 'boolean' ? params.asyncLogging.onMessageSend : false,
     workerId = params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number' ? params.asyncLogging.workerId : 0,
     webrtcConfig = params.webrtcConfig ? params.webrtcConfig : null,
-    isLoggedOut = false;
+    isLoggedOut = false,
+    onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero;
   var reconnOnClose = {
     value: false,
     oldValue: null,
@@ -126,7 +128,7 @@ function Async(params) {
   };
   reconnOnClose.set(reconnectOnClose);
   var retryStep = {
-    value: 4,
+    value: retryStepTimerTime,
     get: function get() {
       return retryStep.value;
     },
@@ -141,14 +143,26 @@ function Async(params) {
    *******************************************************/
 
   var init = function init() {
-      switch (protocol) {
-        case 'websocket':
-          initSocket();
-          break;
-        case 'webrtc':
-          initWebrtc();
-          break;
+      if (retryStep.get() > 0) {
+        onStartWithRetryStepGreaterThanZero && onStartWithRetryStepGreaterThanZero({
+          socketState: socketStateType.CLOSED,
+          timeUntilReconnect: 1000 * retryStep.get(),
+          deviceRegister: false,
+          serverRegister: false,
+          peerId: peerId
+        });
       }
+      socketReconnectRetryInterval = setTimeout(function () {
+        if (isLoggedOut) return;
+        switch (protocol) {
+          case 'websocket':
+            initSocket();
+            break;
+          case 'webrtc':
+            initWebrtc();
+            break;
+        }
+      }, 1000 * retryStep.get());
     },
     asyncLogger = function asyncLogger(type, msg) {
       Utility.asyncLogger({
@@ -243,7 +257,9 @@ function Async(params) {
             if (isLoggedOut) return;
             socket.connect();
             setTimeout(function () {
-              fireEvent("reconnecting");
+              fireEvent("reconnecting", {
+                nextTime: retryStep.get()
+              });
             }, 5);
           }, 1000 * retryStep.get());
           if (retryStep.get() < 64) {
@@ -346,6 +362,7 @@ function Async(params) {
         isSocketOpen = false;
         isDeviceRegister = false;
         oldPeerId = peerId;
+        socketState = socketStateType.CLOSED;
         fireEvent('disconnect', event);
         if (reconnOnClose.get() || reconnOnClose.getOld()) {
           if (asyncLogging) {
@@ -356,7 +373,6 @@ function Async(params) {
             }
           }
           logLevel.debug && console.debug("[Async][async.js] on connection close, retryStep:", retryStep.get());
-          socketState = socketStateType.CLOSED;
           fireEvent('stateChange', {
             socketState: socketState,
             timeUntilReconnect: 1000 * retryStep.get(),
@@ -369,6 +385,11 @@ function Async(params) {
           socketReconnectRetryInterval = setTimeout(function () {
             if (isLoggedOut) return;
             webRTCClass.connect();
+            setTimeout(function () {
+              fireEvent("reconnecting", {
+                nextTime: retryStep.get()
+              });
+            }, 5);
           }, 1000 * retryStep.get());
           if (retryStep.get() < 64) {
             // retryStep += 3;
@@ -863,6 +884,9 @@ function Async(params) {
       // else if(protocol == "webrtc")
       //     webRTCClass.connect()
     }, 4000);
+  };
+  this.setRetryTimerTime = function (seconds) {
+    retryStep.set(seconds);
   };
   this.generateUUID = Utility.generateUUID;
   init();

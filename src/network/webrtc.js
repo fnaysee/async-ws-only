@@ -132,6 +132,7 @@ function PingManager(params) {
 }
 
 function connect() {
+    variables.isDestroyed = false;
     webrtcFunctions.createPeerConnection();
 }
 
@@ -304,6 +305,9 @@ let handshakingFunctions = {
         let retries = variables.apiCallRetries.register;
         return new Promise(promiseHandler);
         function promiseHandler(resolve, reject) {
+            if(variables.isDestroyed)
+                return;
+
             let registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint
             fetch(registerEndPoint, {
                 method: "POST",
@@ -339,13 +343,16 @@ let handshakingFunctions = {
         }
     },
     getCandidates: function (clientId) {
-        let addIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint
-        addIceCandidateEndPoint += "clientId=" + clientId;
+        let getIceCandidateEndPoint = getApiUrl() + defaultConfig.getICEEndpoint
+        getIceCandidateEndPoint += "clientId=" + clientId;
 
         let retries = variables.apiCallRetries.getIce;
         return new Promise(promiseHandler);
         function promiseHandler(resolve, reject) {
-            fetch(addIceCandidateEndPoint, {
+            if(variables.isDestroyed)
+                return;
+
+            fetch(getIceCandidateEndPoint, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -395,6 +402,9 @@ let handshakingFunctions = {
 
         return new Promise(promiseHandler);
         function promiseHandler(resolve, reject) {
+            if(variables.isDestroyed)
+                return;
+
             fetch(addIceCandidateEndPoint, {
                 method: "POST",
                 body: JSON.stringify({
@@ -445,7 +455,7 @@ function resetVariables() {
     variables.deviceId = null;
     variables.candidateManager.destroy();
     variables.candidateManager = new CandidatesSendQueueManager();
-    variables.isDestroyed = false;
+    // variables.isDestroyed = false;
     if(!variables.isDestroyed && variables.eventCallback["close"]){
         variables.eventCallback["close"]();
     }
