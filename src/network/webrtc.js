@@ -33,8 +33,15 @@ let defaultConfig = {
         },
         eventCallback: {},
         subdomain: null,
-        isDestroyed: false
+        isDestroyed: false,
+        dataChannelOpenTimeout: null,
+        dataChannelOpenTimeoutTime: 3000,
+        isDataChannelOpened: false
     };
+
+function isDataChannelOpened(){
+    return variables.isDataChannelOpened
+}
 
 function CandidatesSendQueueManager() {
     let config = {
@@ -134,6 +141,11 @@ function PingManager(params) {
 function connect() {
     variables.isDestroyed = false;
     webrtcFunctions.createPeerConnection();
+    variables.dataChannelOpenTimeout = setTimeout(() => {
+        if(!isDataChannelOpened()) {
+           publicized.close();
+        }
+    }, variables.dataChannelOpenTimeoutTime)
 }
 
 let webrtcFunctions = {
@@ -265,6 +277,7 @@ let webrtcFunctions = {
 let dataChannelCallbacks = {
     onopen: function (event) {
         console.log("********* dataChannel open *********");
+        variables.isDataChannelOpened = true;
         variables.pingController.resetPingLoop();
         variables.eventCallback["open"]();
 
@@ -455,6 +468,8 @@ function resetVariables() {
     variables.deviceId = null;
     variables.candidateManager.destroy();
     variables.candidateManager = new CandidatesSendQueueManager();
+    variables.isDataChannelOpened = false;
+    clearTimeout(variables.dataChannelOpenTimeout);
     // variables.isDestroyed = false;
     if(!variables.isDestroyed && variables.eventCallback["close"]){
         variables.eventCallback["close"]();
