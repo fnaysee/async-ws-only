@@ -261,7 +261,7 @@ let webrtcFunctions = {
 
             if (variables.peerConnection.signalingState === 'stable') {
                 //defaultConfig.logLevel.debug &&
-                console.log("[Async][WebRTC] Send ", data);
+                // console.log("[Async][WebRTC] Send ", data);
                 variables.dataChannel.send(JSON.stringify(data));
             }
         } catch (error) {
@@ -276,7 +276,7 @@ let webrtcFunctions = {
 
 let dataChannelCallbacks = {
     onopen: function (event) {
-        console.log("********* dataChannel open *********");
+        // console.log("********* dataChannel open *********");
         variables.isDataChannelOpened = true;
         variables.pingController.resetPingLoop();
         variables.eventCallback["open"]();
@@ -294,7 +294,7 @@ let dataChannelCallbacks = {
         variables.pingController.resetPingLoop();
         decompressResponse(event.data).then(result => {
             var messageData = JSON.parse(result);
-            console.log("[Async][WebRTC] Receive ", result);
+            // console.log("[Async][WebRTC] Receive ", result);
             variables.eventCallback["message"](messageData);
         });
     },
@@ -581,13 +581,13 @@ async function decompressResponse(compressedData) {
  * @private
  */
 function _arrayBufferToBase64Url(arrayBuffer) {
-    console.log('base64Url from array buffer:', arrayBuffer);
+    // console.log('base64Url from array buffer:', arrayBuffer);
 
     let base64Url = window.btoa(String.fromCodePoint(...new Uint8Array(arrayBuffer)));
     base64Url = base64Url.replaceAll('+', '-');
     base64Url = base64Url.replaceAll('/', '_');
 
-    console.log('base64Url:', base64Url);
+    // console.log('base64Url:', base64Url);
     return base64Url;
 }
 
@@ -599,14 +599,14 @@ function _arrayBufferToBase64Url(arrayBuffer) {
  * @private
  */
 function _base64UrlToArrayBuffer(base64) {
-    console.log('array buffer from base64Url:', base64);
+    // console.log('array buffer from base64Url:', base64);
     const binaryString = window.atob(base64);
     const length = binaryString.length;
     const bytes = new Uint8Array(length);
     for (let i = 0; i < length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
     }
-    console.log('array buffer:', bytes.buffer);
+    // console.log('array buffer:', bytes.buffer);
     return bytes.buffer;
 }
 

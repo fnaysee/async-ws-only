@@ -253,14 +253,12 @@ function Async(params) {
           });
           socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
           socketReconnectRetryInterval = null;
+          fireEvent("reconnecting", {
+            nextTime: retryStep.get()
+          });
           socketReconnectRetryInterval = setTimeout(function () {
             if (isLoggedOut) return;
             socket.connect();
-            setTimeout(function () {
-              fireEvent("reconnecting", {
-                nextTime: retryStep.get()
-              });
-            }, 5);
           }, 1000 * retryStep.get());
           if (retryStep.get() < 64) {
             // retryStep += 3;
@@ -382,14 +380,12 @@ function Async(params) {
           });
           socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
           socketReconnectRetryInterval = null;
+          fireEvent("reconnecting", {
+            nextTime: retryStep.get()
+          });
           socketReconnectRetryInterval = setTimeout(function () {
             if (isLoggedOut) return;
             webRTCClass.connect();
-            setTimeout(function () {
-              fireEvent("reconnecting", {
-                nextTime: retryStep.get()
-              });
-            }, 5);
           }, 1000 * retryStep.get());
           if (retryStep.get() < 64) {
             // retryStep += 3;
@@ -779,63 +775,64 @@ function Async(params) {
     }
   };
   this.logout = function () {
-    isLoggedOut = true;
-    socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-    socketReconnectRetryInterval = null;
-    reconnectSocketTimeout && clearTimeout(socketReconnectRetryInterval);
-    reconnectSocketTimeout = null;
-    oldPeerId = peerId;
-    peerId = undefined;
-    isServerRegister = false;
-    isDeviceRegister = false;
-    isSocketOpen = false;
-    deviceId = undefined;
-    pushSendDataQueue = [];
-    ackCallback = {};
-    clearTimeouts();
-    switch (protocol) {
-      case 'websocket':
-        socketState = socketStateType.CLOSED;
-        fireEvent('stateChange', {
-          socketState: socketState,
-          timeUntilReconnect: 0,
-          deviceRegister: isDeviceRegister,
-          serverRegister: isServerRegister,
-          peerId: peerId
-        });
-        reconnOnClose.set(false);
-        // reconnectOnClose = false;
+    return new Promise(function (resolve) {
+      isLoggedOut = true;
+      socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+      socketReconnectRetryInterval = null;
+      reconnectSocketTimeout && clearTimeout(socketReconnectRetryInterval);
+      reconnectSocketTimeout = null;
+      oldPeerId = peerId;
+      peerId = undefined;
+      isServerRegister = false;
+      isDeviceRegister = false;
+      isSocketOpen = false;
+      deviceId = undefined;
+      pushSendDataQueue = [];
+      ackCallback = {};
+      clearTimeouts();
+      switch (protocol) {
+        case 'websocket':
+          socketState = socketStateType.CLOSED;
+          fireEvent('stateChange', {
+            socketState: socketState,
+            timeUntilReconnect: 0,
+            deviceRegister: isDeviceRegister,
+            serverRegister: isServerRegister,
+            peerId: peerId
+          });
+          reconnOnClose.set(false);
+          // reconnectOnClose = false;
 
-        if (socket) {
-          socket.destroy();
-          socket.close();
-        }
-        break;
-      case 'webrtc':
-        socketState = socketStateType.CLOSED;
-        fireEvent('stateChange', {
-          socketState: socketState,
-          timeUntilReconnect: 0,
-          deviceRegister: isDeviceRegister,
-          serverRegister: isServerRegister,
-          peerId: peerId
-        });
-        reconnOnClose.set(false);
-        // reconnectOnClose = false;
-        if (webRTCClass) {
-          webRTCClass.destroy();
-          webRTCClass.close();
-        }
-        break;
-    }
-    setTimeout(function () {
-      fireEvent("asyncDestroyed");
+          if (socket) {
+            socket.destroy();
+            socket.close();
+          }
+          break;
+        case 'webrtc':
+          socketState = socketStateType.CLOSED;
+          fireEvent('stateChange', {
+            socketState: socketState,
+            timeUntilReconnect: 0,
+            deviceRegister: isDeviceRegister,
+            serverRegister: isServerRegister,
+            peerId: peerId
+          });
+          reconnOnClose.set(false);
+          // reconnectOnClose = false;
+          if (webRTCClass) {
+            webRTCClass.destroy();
+            webRTCClass.close();
+          }
+          break;
+      }
+      for (var i in eventCallbacks) {
+        delete eventCallbacks[i];
+      }
       setTimeout(function () {
-        for (var i in eventCallbacks) {
-          delete eventCallbacks[i];
-        }
-      }, 2);
-    }, 20);
+        resolve();
+        // fireEvent("asyncDestroyed");
+      }, 20);
+    });
   };
   var reconnectSocketTimeout;
   this.reconnectSocket = function () {
