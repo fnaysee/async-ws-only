@@ -25,7 +25,8 @@ var defaultConfig = {
       }]
     },
     connectionCheckTimeout: 10000,
-    logLevel: null
+    logLevel: null,
+    msgLogCallback: null
   },
   variables = {
     peerConnection: null,
@@ -250,7 +251,13 @@ var webrtcFunctions = {
       if (variables.peerConnection.signalingState === 'stable') {
         //defaultConfig.logLevel.debug &&
         // console.log("[Async][WebRTC] Send ", data);
-        variables.dataChannel.send(JSON.stringify(data));
+        var stringData = JSON.stringify(data);
+        defaultConfig.msgLogCallback && defaultConfig.msgLogCallback({
+          msg: stringData,
+          direction: "send",
+          time: new Date().getTime()
+        });
+        variables.dataChannel.send(stringData);
       }
     } catch (error) {
       variables.eventCallback["customError"]({
@@ -263,7 +270,7 @@ var webrtcFunctions = {
 };
 var dataChannelCallbacks = {
   onopen: function onopen(event) {
-    // console.log("********* dataChannel open *********");
+    console.log("[Async][webrtc] dataChannel open");
     variables.isDataChannelOpened = true;
     variables.pingController.resetPingLoop();
     variables.eventCallback["open"]();
@@ -282,6 +289,11 @@ var dataChannelCallbacks = {
   onmessage: function onmessage(event) {
     variables.pingController.resetPingLoop();
     decompressResponse(event.data).then(function (result) {
+      defaultConfig.msgLogCallback && defaultConfig.msgLogCallback({
+        msg: result,
+        direction: "receive",
+        time: new Date().getTime()
+      });
       var messageData = JSON.parse(result);
       // console.log("[Async][WebRTC] Receive ", result);
       variables.eventCallback["message"](messageData);
@@ -461,7 +473,8 @@ function WebRTCClass(_ref) {
     configuration = _ref.configuration,
     _ref$connectionCheckT = _ref.connectionCheckTimeout,
     connectionCheckTimeout = _ref$connectionCheckT === void 0 ? 10000 : _ref$connectionCheckT,
-    logLevel = _ref.logLevel;
+    logLevel = _ref.logLevel,
+    msgLogCallback = _ref.msgLogCallback;
   var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
   if (basePath) config.basePath = basePath;
@@ -469,6 +482,7 @@ function WebRTCClass(_ref) {
   if (connectionCheckTimeout) config.connectionCheckTimeout = connectionCheckTimeout;
   if (logLevel) config.logLevel = logLevel;
   defaultConfig = Object.assign(defaultConfig, config);
+  defaultConfig.msgLogCallback = msgLogCallback;
   return publicized;
 }
 var publicized = {

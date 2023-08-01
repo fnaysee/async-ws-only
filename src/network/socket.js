@@ -41,7 +41,8 @@
             reason: "Connection didn't open after a long time"
           },
 
-        };
+        },
+        msgLogCallback = params.msgLogCallback;
 
 
     function PingManager(params) {
@@ -140,6 +141,11 @@
             }
 
             socket.onmessage = function(event) {
+              msgLogCallback({
+                msg: event.data,
+                direction: "receive",
+                time: new Date().getTime()
+              });
               if(eventCallback["message"]) {
                 pingController.resetPingLoop();
 
@@ -227,7 +233,13 @@
             }
 
             if (socket.readyState === 1) {
-              socket.send(JSON.stringify(data));
+              let stringData = JSON.stringify(data);
+              msgLogCallback({
+                msg: stringData,
+                direction: "send",
+                time: new Date().getTime()
+              });
+              socket.send(stringData);
             }
           } catch (error) {
             eventCallback["customError"]({

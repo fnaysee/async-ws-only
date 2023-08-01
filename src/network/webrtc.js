@@ -15,7 +15,8 @@ let defaultConfig = {
             }]
         },
         connectionCheckTimeout: 10000,
-        logLevel: null
+        logLevel: null,
+        msgLogCallback: null
     },
     variables = {
         peerConnection: null,
@@ -262,7 +263,13 @@ let webrtcFunctions = {
             if (variables.peerConnection.signalingState === 'stable') {
                 //defaultConfig.logLevel.debug &&
                 // console.log("[Async][WebRTC] Send ", data);
-                variables.dataChannel.send(JSON.stringify(data));
+                let stringData = JSON.stringify(data);
+                defaultConfig.msgLogCallback && defaultConfig.msgLogCallback({
+                    msg: stringData,
+                    direction: "send",
+                    time: new Date().getTime()
+                });
+                variables.dataChannel.send(stringData);
             }
         } catch (error) {
             variables.eventCallback["customError"]({
@@ -276,7 +283,7 @@ let webrtcFunctions = {
 
 let dataChannelCallbacks = {
     onopen: function (event) {
-        // console.log("********* dataChannel open *********");
+        console.log("[Async][webrtc] dataChannel open");
         variables.isDataChannelOpened = true;
         variables.pingController.resetPingLoop();
         variables.eventCallback["open"]();
@@ -290,10 +297,14 @@ let dataChannelCallbacks = {
     },
 
     onmessage: function (event) {
-
         variables.pingController.resetPingLoop();
         decompressResponse(event.data).then(result => {
-            var messageData = JSON.parse(result);
+            defaultConfig.msgLogCallback && defaultConfig.msgLogCallback({
+                msg: result,
+                direction: "receive",
+                time: new Date().getTime()
+            });
+            let messageData = JSON.parse(result);
             // console.log("[Async][WebRTC] Receive ", result);
             variables.eventCallback["message"](messageData);
         });
@@ -455,7 +466,6 @@ let handshakingFunctions = {
     }
 }
 
-
 function resetVariables() {
     variables.subdomain = null;
     variables.pingController.stopPingLoop();
@@ -497,7 +507,8 @@ function WebRTCClass({
     basePath,
     configuration,
     connectionCheckTimeout = 10000,
-    logLevel
+    logLevel,
+    msgLogCallback
 }) {
     let config = {}
     if (baseUrl)
@@ -513,6 +524,7 @@ function WebRTCClass({
         config.logLevel = logLevel;
 
     defaultConfig = Object.assign(defaultConfig, config);
+    defaultConfig.msgLogCallback = msgLogCallback;
     return publicized;
 }
 

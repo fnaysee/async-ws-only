@@ -46,7 +46,6 @@ function Async(params) {
             asyncReady: {},
             stateChange: {},
             error: {},
-            msgLogs: {},
             reconnecting: {},
             asyncDestroyed: {}
         },
@@ -104,7 +103,8 @@ function Async(params) {
         workerId = (params.asyncLogging && typeof parseInt(params.asyncLogging.workerId) === 'number') ? params.asyncLogging.workerId : 0,
         webrtcConfig = (params.webrtcConfig ? params.webrtcConfig : null),
         isLoggedOut = false,
-        onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero;
+        onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero,
+        msgLogCallback = typeof params.msgLogCallback == "function"? params.msgLogCallback : null;
 
     const reconnOnClose = {
         value: false,
@@ -188,7 +188,8 @@ function Async(params) {
                 wsConnectionWaitTime: params.wsConnectionWaitTime,
                 connectionCheckTimeout: params.connectionCheckTimeout,
                 connectionCheckTimeoutThreshold: params.connectionCheckTimeoutThreshold,
-                logLevel: logLevel
+                logLevel: logLevel,
+                msgLogCallback
             });
 
             checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
@@ -226,6 +227,8 @@ function Async(params) {
                     asyncLogger('Receive', msg);
                 }
             });
+
+
 
             socket.on('close', function (event) {
                 isSocketOpen = false;
@@ -348,7 +351,8 @@ function Async(params) {
                 basePath: (webrtcConfig ? webrtcConfig.basePath : null),
                 configuration : (webrtcConfig ? webrtcConfig.configuration : null),
                 connectionCheckTimeout: params.connectionCheckTimeout,
-                logLevel: logLevel
+                logLevel: logLevel,
+                msgLogCallback
             });
 
             checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
@@ -472,12 +476,6 @@ function Async(params) {
         },
 
         handleSocketMessage = function (msg) {
-            fireEvent("msgLogs", {
-                msg,
-                direction: "receive",
-                time: new Date().getTime()
-            });
-
             var ack;
 
             if (msg.type === asyncMessageType.MESSAGE_ACK_NEEDED || msg.type === asyncMessageType.MESSAGE_SENDER_ACK_NEEDED) {
@@ -714,12 +712,6 @@ function Async(params) {
         },
 
         pushSendData = function (msg) {
-            fireEvent("msgLogs", {
-                msg,
-                direction: "send",
-                time: new Date().getTime()
-            });
-
             if (onSendLogging) {
                 asyncLogger('Send', msg);
             }

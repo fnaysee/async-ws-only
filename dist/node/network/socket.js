@@ -43,7 +43,8 @@
           code: 4902,
           reason: "Connection didn't open after a long time"
         }
-      };
+      },
+      msgLogCallback = params.msgLogCallback;
     function PingManager(params) {
       var config = {
         normalWaitTime: params.waitTime,
@@ -135,6 +136,11 @@
             }
           };
           socket.onmessage = function (event) {
+            msgLogCallback({
+              msg: event.data,
+              direction: "receive",
+              time: new Date().getTime()
+            });
             if (eventCallback["message"]) {
               pingController.resetPingLoop();
               var messageData = JSON.parse(event.data);
@@ -210,7 +216,13 @@
             data.content = JSON.stringify(params.content);
           }
           if (socket.readyState === 1) {
-            socket.send(JSON.stringify(data));
+            var stringData = JSON.stringify(data);
+            msgLogCallback({
+              msg: stringData,
+              direction: "send",
+              time: new Date().getTime()
+            });
+            socket.send(stringData);
           }
         } catch (error) {
           eventCallback["customError"]({
