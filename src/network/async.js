@@ -208,7 +208,7 @@ function Async(params) {
                 socketReconnectCheck && clearTimeout(socketReconnectCheck);
 
                 isSocketOpen = true;
-                retryStep.set(4);
+                retryStep.set(0);
 
                 socketState = socketStateType.OPEN;
                 fireEvent('stateChange', {
@@ -350,9 +350,10 @@ function Async(params) {
                 baseUrl: (webrtcConfig ? webrtcConfig.baseUrl : null),
                 basePath: (webrtcConfig ? webrtcConfig.basePath : null),
                 configuration : (webrtcConfig ? webrtcConfig.configuration : null),
-                connectionCheckTimeout: params.connectionCheckTimeout,
+                connectionCheckTimeout: params.connectionCheckTimeout,//ping
                 logLevel: logLevel,
-                msgLogCallback
+                msgLogCallback,
+                connectionOpenWaitTime: params.connectionOpenWaitTime //timeout time to open
             });
 
             checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
@@ -372,7 +373,7 @@ function Async(params) {
                 socketReconnectCheck && clearTimeout(socketReconnectCheck);
 
                 isSocketOpen = true;
-                retryStep.set(4);
+                retryStep.set(0);
 
                 socketState = socketStateType.OPEN;
                 fireEvent('stateChange', {

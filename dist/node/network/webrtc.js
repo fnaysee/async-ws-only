@@ -3,7 +3,6 @@
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
 var _typeof = require("@babel/runtime/helpers/typeof");
 var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
-var _toConsumableArray2 = _interopRequireDefault(require("@babel/runtime/helpers/toConsumableArray"));
 var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/asyncToGenerator"));
 var fflate = _interopRequireWildcard(require("fflate"));
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
@@ -26,7 +25,8 @@ var defaultConfig = {
     },
     connectionCheckTimeout: 10000,
     logLevel: null,
-    msgLogCallback: null
+    msgLogCallback: null,
+    connectionOpenWaitTime: 7000
   },
   variables = {
     peerConnection: null,
@@ -48,7 +48,6 @@ var defaultConfig = {
     subdomain: null,
     isDestroyed: false,
     dataChannelOpenTimeout: null,
-    dataChannelOpenTimeoutTime: 3000,
     isDataChannelOpened: false
   };
 function isDataChannelOpened() {
@@ -63,7 +62,7 @@ function CandidatesSendQueueManager() {
   function trySendingCandidates() {
     timoutCallback();
     function timoutCallback() {
-      if (variables.peerConnection.signalingState === 'stable') {
+      if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
         config.reCheckTimeout && clearTimeout(config.reCheckTimeout);
         if (config.candidatesToSend.length) {
           var entry = config.candidatesToSend.shift();
@@ -124,6 +123,7 @@ function PingManager(params) {
         config.timeoutIds.second = setTimeout(function () {
           ping();
           config.timeoutIds.third = setTimeout(function () {
+            console.log("[Async][webrtc] Closing because of ping timeout.");
             defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
             publicized.close();
           }, 2000);
@@ -142,19 +142,22 @@ function PingManager(params) {
 function connect() {
   variables.isDestroyed = false;
   webrtcFunctions.createPeerConnection();
+  console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
   variables.dataChannelOpenTimeout = setTimeout(function () {
     if (!isDataChannelOpened()) {
+      console.log("[Async][webrtc] Closing because of wait timeout.");
       publicized.close();
     }
-  }, variables.dataChannelOpenTimeoutTime);
+  }, defaultConfig.connectionOpenWaitTime);
 }
 var webrtcFunctions = {
   createPeerConnection: function createPeerConnection() {
     try {
       variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+      console.log("[Async][webrtc] Created peer connection.");
     } catch (error) {
       publicized.close();
-      console.error("Webrtc Peer Create Error: ", error.message);
+      console.error("[Async][webrtc] Webrtc Peer Create Error: ", error.message);
       return;
     }
     variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
@@ -180,7 +183,7 @@ var webrtcFunctions = {
     }
   },
   signalingStateChangeCallback: function signalingStateChangeCallback() {
-    if (variables.peerConnection.signalingState === 'stable') {
+    if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
       // handshakingFunctions.getCandidates().catch()
       webrtcFunctions.addTheCandidates();
     }
@@ -228,7 +231,7 @@ var webrtcFunctions = {
     variables.candidatesQueue.push({
       candidate: new RTCIceCandidate(candidate)
     });
-    if (variables.peerConnection.signalingState === 'stable') {
+    if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
       webrtcFunctions.addTheCandidates();
     }
   },
@@ -248,7 +251,7 @@ var webrtcFunctions = {
       if (params.content) {
         data.content = JSON.stringify(params.content);
       }
-      if (variables.peerConnection.signalingState === 'stable') {
+      if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
         //defaultConfig.logLevel.debug &&
         // console.log("[Async][WebRTC] Send ", data);
         var stringData = JSON.stringify(data);
@@ -300,11 +303,13 @@ var dataChannelCallbacks = {
     });
   },
   onerror: function onerror(error) {
-    defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
+    console.log("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
+    defaultConfig.logLevel.debug && console.debug("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
     variables.eventCallback["error"]();
     publicized.close();
   },
   onclose: function onclose(event) {
+    console.log("[Async][webrtc] dataChannel.onclose happened. EventData:", event);
     publicized.close();
   }
 };
@@ -474,13 +479,15 @@ function WebRTCClass(_ref) {
     _ref$connectionCheckT = _ref.connectionCheckTimeout,
     connectionCheckTimeout = _ref$connectionCheckT === void 0 ? 10000 : _ref$connectionCheckT,
     logLevel = _ref.logLevel,
-    msgLogCallback = _ref.msgLogCallback;
+    msgLogCallback = _ref.msgLogCallback,
+    connectionOpenWaitTime = _ref.connectionOpenWaitTime;
   var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
   if (basePath) config.basePath = basePath;
   if (configuration) config.configuration = configuration;
   if (connectionCheckTimeout) config.connectionCheckTimeout = connectionCheckTimeout;
   if (logLevel) config.logLevel = logLevel;
+  if (connectionOpenWaitTime) config.connectionOpenWaitTime = connectionOpenWaitTime;
   defaultConfig = Object.assign(defaultConfig, config);
   defaultConfig.msgLogCallback = msgLogCallback;
   return publicized;
@@ -515,26 +522,6 @@ function _decompress() {
     return _regenerator["default"].wrap(function _callee$(_context) {
       while (1) switch (_context.prev = _context.next) {
         case 0:
-          // console.log("decompress ", 1)
-          // const cs = new DecompressionStream(encoding);
-          // console.log("decompress ", 2)
-          // const writer = cs.writable.getWriter();
-          // console.log("decompress ", 3)
-          // writer.write(byteArray);
-          // console.log("decompress ", 4)
-          //
-          // writer.close();
-          // console.log("decompress ", 5)
-          //
-          // return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
-          //     console.log("decompress ", 6, new TextDecoder().decode(arrayBuffer))
-          //     return new TextDecoder().decode(arrayBuffer);
-          // });
-          // const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
-          // const decompressedData = brotli.decompress(byteArray);
-          // const decodedResult = new TextDecoder().decode(decompressedData);
-          // console.log({decodedResult});
-          // return decodedResult;
           result = fflate.decompressSync(new Uint8Array(byteArray));
           res = new TextDecoder().decode(result);
           return _context.abrupt("return", res);
@@ -550,10 +537,10 @@ function decompressResponse(_x3) {
   return _decompressResponse.apply(this, arguments);
 } //utility
 /**
- * Array buffer to base64Url string
- * - arrBuff->byte[]->biStr->b64->b64u
- * @param arrayBuffer
- * @returns {string}
+ * Base64Url string to array buffer
+ * - b64u->b64->biStr->byte[]->arrBuff
+ * @param base64Url
+ * @returns {ArrayBufferLike}
  * @private
  */
 function _decompressResponse() {
@@ -573,24 +560,6 @@ function _decompressResponse() {
   }));
   return _decompressResponse.apply(this, arguments);
 }
-function _arrayBufferToBase64Url(arrayBuffer) {
-  // console.log('base64Url from array buffer:', arrayBuffer);
-
-  var base64Url = window.btoa(String.fromCodePoint.apply(String, (0, _toConsumableArray2["default"])(new Uint8Array(arrayBuffer))));
-  base64Url = base64Url.replaceAll('+', '-');
-  base64Url = base64Url.replaceAll('/', '_');
-
-  // console.log('base64Url:', base64Url);
-  return base64Url;
-}
-
-/**
- * Base64Url string to array buffer
- * - b64u->b64->biStr->byte[]->arrBuff
- * @param base64Url
- * @returns {ArrayBufferLike}
- * @private
- */
 function _base64UrlToArrayBuffer(base64) {
   // console.log('array buffer from base64Url:', base64);
   var binaryString = window.atob(base64);

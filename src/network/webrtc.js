@@ -16,7 +16,8 @@ let defaultConfig = {
         },
         connectionCheckTimeout: 10000,
         logLevel: null,
-        msgLogCallback: null
+        msgLogCallback: null,
+        connectionOpenWaitTime: 7000
     },
     variables = {
         peerConnection: null,
@@ -36,7 +37,6 @@ let defaultConfig = {
         subdomain: null,
         isDestroyed: false,
         dataChannelOpenTimeout: null,
-        dataChannelOpenTimeoutTime: 3000,
         isDataChannelOpened: false
     };
 
@@ -54,7 +54,7 @@ function CandidatesSendQueueManager() {
     function trySendingCandidates() {
         timoutCallback();
         function timoutCallback() {
-            if(variables.peerConnection.signalingState === 'stable') {
+            if(variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
                 config.reCheckTimeout && clearTimeout(config.reCheckTimeout);
                 if (config.candidatesToSend.length) {
                     let entry = config.candidatesToSend.shift();
@@ -124,6 +124,7 @@ function PingManager(params) {
                 config.timeoutIds.second = setTimeout(() => {
                     ping();
                     config.timeoutIds.third = setTimeout(() => {
+                        console.log("[Async][webrtc] Closing because of ping timeout.");
                         defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
                         publicized.close();
                     }, 2000);
@@ -142,20 +143,23 @@ function PingManager(params) {
 function connect() {
     variables.isDestroyed = false;
     webrtcFunctions.createPeerConnection();
+    console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
     variables.dataChannelOpenTimeout = setTimeout(() => {
         if(!isDataChannelOpened()) {
+            console.log("[Async][webrtc] Closing because of wait timeout.")
            publicized.close();
         }
-    }, variables.dataChannelOpenTimeoutTime)
+    }, defaultConfig.connectionOpenWaitTime);
 }
 
 let webrtcFunctions = {
     createPeerConnection: function () {
         try {
             variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
+            console.log("[Async][webrtc] Created peer connection.");
         } catch (error) {
             publicized.close();
-            console.error("Webrtc Peer Create Error: ", error.message);
+            console.error("[Async][webrtc] Webrtc Peer Create Error: ", error.message);
             return
         }
 
@@ -189,7 +193,7 @@ let webrtcFunctions = {
         }
     },
     signalingStateChangeCallback: function () {
-        if (variables.peerConnection.signalingState === 'stable') {
+        if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
             // handshakingFunctions.getCandidates().catch()
             webrtcFunctions.addTheCandidates();
         }
@@ -237,7 +241,7 @@ let webrtcFunctions = {
         variables.candidatesQueue.push({
             candidate: new RTCIceCandidate(candidate)
         });
-        if (variables.peerConnection.signalingState === 'stable') {
+        if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
             webrtcFunctions.addTheCandidates();
         }
     },
@@ -260,7 +264,7 @@ let webrtcFunctions = {
                 data.content = JSON.stringify(params.content);
             }
 
-            if (variables.peerConnection.signalingState === 'stable') {
+            if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
                 //defaultConfig.logLevel.debug &&
                 // console.log("[Async][WebRTC] Send ", data);
                 let stringData = JSON.stringify(data);
@@ -311,11 +315,13 @@ let dataChannelCallbacks = {
     },
 
     onerror: function (error) {
-        defaultConfig.logLevel.debug && console.debug("[Async][Socket.js] dataChannel.onerror happened. EventData:", event);
+        console.log("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
+        defaultConfig.logLevel.debug && console.debug("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
         variables.eventCallback["error"]();
         publicized.close();
     },
     onclose: function (event) {
+        console.log("[Async][webrtc] dataChannel.onclose happened. EventData:", event);
         publicized.close();
     }
 }
@@ -508,7 +514,8 @@ function WebRTCClass({
     configuration,
     connectionCheckTimeout = 10000,
     logLevel,
-    msgLogCallback
+    msgLogCallback,
+    connectionOpenWaitTime
 }) {
     let config = {}
     if (baseUrl)
@@ -522,6 +529,8 @@ function WebRTCClass({
         config.connectionCheckTimeout = connectionCheckTimeout;
     if (logLevel)
         config.logLevel = logLevel;
+    if(connectionOpenWaitTime)
+        config.connectionOpenWaitTime = connectionOpenWaitTime;
 
     defaultConfig = Object.assign(defaultConfig, config);
     defaultConfig.msgLogCallback = msgLogCallback;
@@ -551,29 +560,6 @@ let publicized = {
  * Decompress results
  */
 async function decompress(byteArray, encoding) {
-    // console.log("decompress ", 1)
-    // const cs = new DecompressionStream(encoding);
-    // console.log("decompress ", 2)
-    // const writer = cs.writable.getWriter();
-    // console.log("decompress ", 3)
-    // writer.write(byteArray);
-    // console.log("decompress ", 4)
-    //
-    // writer.close();
-    // console.log("decompress ", 5)
-    //
-    // return new Response(cs.readable).arrayBuffer().then(function (arrayBuffer) {
-    //     console.log("decompress ", 6, new TextDecoder().decode(arrayBuffer))
-    //     return new TextDecoder().decode(arrayBuffer);
-    // });
-
-
-
-    // const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
-    // const decompressedData = brotli.decompress(byteArray);
-    // const decodedResult = new TextDecoder().decode(decompressedData);
-    // console.log({decodedResult});
-    // return decodedResult;
     const result = fflate.decompressSync(new Uint8Array(byteArray));
     const res = new TextDecoder().decode(result)
     return res;
@@ -584,24 +570,6 @@ async function decompressResponse(compressedData) {
 }
 
 //utility
-
-/**
- * Array buffer to base64Url string
- * - arrBuff->byte[]->biStr->b64->b64u
- * @param arrayBuffer
- * @returns {string}
- * @private
- */
-function _arrayBufferToBase64Url(arrayBuffer) {
-    // console.log('base64Url from array buffer:', arrayBuffer);
-
-    let base64Url = window.btoa(String.fromCodePoint(...new Uint8Array(arrayBuffer)));
-    base64Url = base64Url.replaceAll('+', '-');
-    base64Url = base64Url.replaceAll('/', '_');
-
-    // console.log('base64Url:', base64Url);
-    return base64Url;
-}
 
 /**
  * Base64Url string to array buffer
