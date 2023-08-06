@@ -125,7 +125,7 @@ function Socket(params) {
           }
 
           socket.onmessage = function(event) {
-            msgLogCallback({
+            msgLogCallback && msgLogCallback({
               msg: event.data,
               direction: "receive",
               time: new Date().getTime()
@@ -218,7 +218,7 @@ function Socket(params) {
 
           if (socket.readyState === 1) {
             let stringData = JSON.stringify(data);
-            msgLogCallback({
+            msgLogCallback && msgLogCallback({
               msg: stringData,
               direction: "send",
               time: new Date().getTime()
