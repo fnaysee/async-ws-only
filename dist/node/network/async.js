@@ -38,7 +38,8 @@ function Async(params) {
   // }
 
   var Utility = new _utility["default"]();
-  var protocol = params.protocol || 'websocket',
+  var currentModuleInstance = this,
+    protocol = params.protocol || 'websocket',
     appId = params.appId || 'PodChat',
     deviceId = params.deviceId,
     retryStepTimerTime = typeof params.retryStepTimerTime != "undefined" ? params.retryStepTimerTime : 0,
@@ -154,6 +155,16 @@ function Async(params) {
       }
       socketReconnectRetryInterval = setTimeout(function () {
         if (isLoggedOut) return;
+        window.addEventListener('online', function () {
+          if (!isSocketOpen) {
+            currentModuleInstance.reconnectSocket();
+          }
+        });
+        window.addEventListener('offline', function () {
+          if (isSocketOpen) {
+            currentModuleInstance.reconnectSocket();
+          }
+        });
         switch (protocol) {
           case 'websocket':
             initSocket();
@@ -186,113 +197,15 @@ function Async(params) {
         connectionCheckTimeout: params.connectionCheckTimeout,
         connectionCheckTimeoutThreshold: params.connectionCheckTimeoutThreshold,
         logLevel: logLevel,
-        msgLogCallback: msgLogCallback
-      });
-      checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
-        if (!isSocketOpen) {
-          fireEvent('error', {
-            errorCode: 4001,
-            errorMessage: 'Can not open Socket!'
-          });
-        }
-      }, 65000);
-      socket.on('open', function () {
-        checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
-        socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-        socketReconnectRetryInterval = null;
-        socketReconnectCheck && clearTimeout(socketReconnectCheck);
-        isSocketOpen = true;
-        retryStep.set(0);
-        socketState = socketStateType.OPEN;
-        fireEvent('stateChange', {
-          socketState: socketState,
-          timeUntilReconnect: 0,
-          deviceRegister: isDeviceRegister,
-          serverRegister: isServerRegister,
-          peerId: peerId
-        });
-      });
-      socket.on('message', function (msg) {
-        handleSocketMessage(msg);
-        if (onReceiveLogging) {
-          asyncLogger('Receive', msg);
-        }
-      });
-      socket.on('close', function (event) {
-        isSocketOpen = false;
-        isDeviceRegister = false;
-        oldPeerId = peerId;
-        socketState = socketStateType.CLOSED;
-
-        // socketState = socketStateType.CLOSED;
-        //
-        // fireEvent('stateChange', {
-        //     socketState: socketState,
-        //     timeUntilReconnect: 0,
-        //     deviceRegister: isDeviceRegister,
-        //     serverRegister: isServerRegister,
-        //     peerId: peerId
-        // });
-
-        fireEvent('disconnect', event);
-        if (reconnOnClose.get() || reconnOnClose.getOld()) {
-          // reconnOnClose.set(reconnOnClose.getOld());
-          if (asyncLogging) {
-            if (workerId > 0) {
-              Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
-            } else {
-              Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
-            }
-          }
-          logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
-          fireEvent('stateChange', {
-            socketState: socketState,
-            timeUntilReconnect: 1000 * retryStep.get(),
-            deviceRegister: isDeviceRegister,
-            serverRegister: isServerRegister,
-            peerId: peerId
-          });
-          socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-          socketReconnectRetryInterval = null;
-          fireEvent("reconnecting", {
-            nextTime: retryStep.get()
-          });
-          socketReconnectRetryInterval = setTimeout(function () {
-            if (isLoggedOut) return;
-            socket.connect();
-          }, 1000 * retryStep.get());
-          if (retryStep.get() < 64) {
-            // retryStep += 3;
-            retryStep.set(retryStep.get() + 3);
-          }
-
-          // socketReconnectCheck && clearTimeout(socketReconnectCheck);
-          //
-          // socketReconnectCheck = setTimeout(function() {
-          //   if (!isSocketOpen) {
-          //     fireEvent("error", {
-          //       errorCode: 4001,
-          //       errorMessage: "Can not open Socket!"
-          //     });
-          //
-          //     socketState = socketStateType.CLOSED;
-          //     fireEvent("stateChange", {
-          //       socketState: socketState,
-          //       deviceRegister: isDeviceRegister,
-          //       serverRegister: isServerRegister,
-          //       peerId: peerId
-          //     });
-          //   }
-          // }, 65000);
-        } else {
+        msgLogCallback: msgLogCallback,
+        onOpen: function onOpen() {
+          checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
           socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
           socketReconnectRetryInterval = null;
           socketReconnectCheck && clearTimeout(socketReconnectCheck);
-          fireEvent('error', {
-            errorCode: 4005,
-            errorMessage: 'Socket Closed!'
-          });
-          socketState = socketStateType.CLOSED;
+          isSocketOpen = true;
+          retryStep.set(0);
+          socketState = socketStateType.OPEN;
           fireEvent('stateChange', {
             socketState: socketState,
             timeUntilReconnect: 0,
@@ -300,21 +213,93 @@ function Async(params) {
             serverRegister: isServerRegister,
             peerId: peerId
           });
+        },
+        onMessage: function onMessage(msg) {
+          handleSocketMessage(msg);
+          if (onReceiveLogging) {
+            asyncLogger('Receive', msg);
+          }
+        },
+        onClose: function onClose(event) {
+          isSocketOpen = false;
+          isDeviceRegister = false;
+          oldPeerId = peerId;
+          socketState = socketStateType.CLOSED;
+
+          // socketState = socketStateType.CLOSED;
+          //
+          // fireEvent('stateChange', {
+          //     socketState: socketState,
+          //     timeUntilReconnect: 0,
+          //     deviceRegister: isDeviceRegister,
+          //     serverRegister: isServerRegister,
+          //     peerId: peerId
+          // });
+
+          fireEvent('disconnect', event);
+          if (reconnOnClose.get() || reconnOnClose.getOld()) {
+            // reconnOnClose.set(reconnOnClose.getOld());
+            if (asyncLogging) {
+              if (workerId > 0) {
+                Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
+              } else {
+                Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
+              }
+            }
+            logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
+            fireEvent('stateChange', {
+              socketState: socketState,
+              timeUntilReconnect: 1000 * retryStep.get(),
+              deviceRegister: isDeviceRegister,
+              serverRegister: isServerRegister,
+              peerId: peerId
+            });
+            socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+            socketReconnectRetryInterval = null;
+            fireEvent("reconnecting", {
+              nextTime: retryStep.get()
+            });
+            socket.destroy();
+            socketReconnectRetryInterval = setTimeout(function () {
+              if (isLoggedOut) return;
+              initSocket();
+            }, 1000 * retryStep.get());
+            if (retryStep.get() < 64) {
+              // retryStep += 3;
+              retryStep.set(retryStep.get() + 3);
+            }
+          } else {
+            socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+            socketReconnectRetryInterval = null;
+            socketReconnectCheck && clearTimeout(socketReconnectCheck);
+            fireEvent('error', {
+              errorCode: 4005,
+              errorMessage: 'Socket Closed!'
+            });
+            socketState = socketStateType.CLOSED;
+            fireEvent('stateChange', {
+              socketState: socketState,
+              timeUntilReconnect: 0,
+              deviceRegister: isDeviceRegister,
+              serverRegister: isServerRegister,
+              peerId: peerId
+            });
+          }
+        },
+        onError: function onError(error) {
+          fireEvent('error', {
+            errorCode: '',
+            errorMessage: '',
+            errorEvent: error
+          });
+        },
+        onCustomError: function onCustomError(error) {
+          fireEvent('error', {
+            errorCode: error.errorCode,
+            errorMessage: error.errorMessage,
+            errorEvent: error.errorEvent
+          });
         }
-      });
-      socket.on('customError', function (error) {
-        fireEvent('error', {
-          errorCode: error.errorCode,
-          errorMessage: error.errorMessage,
-          errorEvent: error.errorEvent
-        });
-      });
-      socket.on('error', function (error) {
-        fireEvent('error', {
-          errorCode: '',
-          errorMessage: '',
-          errorEvent: error
-        });
       });
       socket.connect();
     },
@@ -327,9 +312,101 @@ function Async(params) {
         //ping
         logLevel: logLevel,
         msgLogCallback: msgLogCallback,
-        connectionOpenWaitTime: params.connectionOpenWaitTime //timeout time to open
+        connectionOpenWaitTime: params.connectionOpenWaitTime,
+        //timeout time to open
+        onOpen: function onOpen() {
+          checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
+          checkIfSocketHasOpennedTimeoutId = null;
+          socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+          socketReconnectRetryInterval = null;
+          socketReconnectCheck && clearTimeout(socketReconnectCheck);
+          isSocketOpen = true;
+          retryStep.set(0);
+          socketState = socketStateType.OPEN;
+          fireEvent('stateChange', {
+            socketState: socketState,
+            timeUntilReconnect: 0,
+            deviceRegister: isDeviceRegister,
+            serverRegister: isServerRegister,
+            peerId: peerId
+          });
+        },
+        onMessage: function onMessage(msg) {
+          handleSocketMessage(msg);
+          if (onReceiveLogging) {
+            asyncLogger('Receive', msg);
+          }
+        },
+        onClose: function onClose(event) {
+          isSocketOpen = false;
+          isDeviceRegister = false;
+          oldPeerId = peerId;
+          socketState = socketStateType.CLOSED;
+          fireEvent('disconnect', event);
+          if (reconnOnClose.get() || reconnOnClose.getOld()) {
+            if (asyncLogging) {
+              if (workerId > 0) {
+                Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
+              } else {
+                Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
+              }
+            }
+            logLevel.debug && console.debug("[Async][async.js] on connection close, retryStep:", retryStep.get());
+            fireEvent('stateChange', {
+              socketState: socketState,
+              timeUntilReconnect: 1000 * retryStep.get(),
+              deviceRegister: isDeviceRegister,
+              serverRegister: isServerRegister,
+              peerId: peerId
+            });
+            socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+            socketReconnectRetryInterval = null;
+            fireEvent("reconnecting", {
+              nextTime: retryStep.get()
+            });
+            webRTCClass.destroy();
+            socketReconnectRetryInterval = setTimeout(function () {
+              if (isLoggedOut) return;
+              initWebrtc();
+              // webRTCClass.connect();
+            }, 1000 * retryStep.get());
+            if (retryStep.get() < 64) {
+              // retryStep += 3;
+              retryStep.set(retryStep.get() + 3);
+            }
+          } else {
+            socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
+            socketReconnectRetryInterval = null;
+            socketReconnectCheck && clearTimeout(socketReconnectCheck);
+            fireEvent('error', {
+              errorCode: 4005,
+              errorMessage: 'Connection Closed!'
+            });
+            socketState = socketStateType.CLOSED;
+            fireEvent('stateChange', {
+              socketState: socketState,
+              timeUntilReconnect: 0,
+              deviceRegister: isDeviceRegister,
+              serverRegister: isServerRegister,
+              peerId: peerId
+            });
+          }
+        },
+        onCustomError: function onCustomError(error) {
+          fireEvent('error', {
+            errorCode: error.errorCode,
+            errorMessage: error.errorMessage,
+            errorEvent: error.errorEvent
+          });
+        },
+        onError: function onError(error) {
+          fireEvent('error', {
+            errorCode: '',
+            errorMessage: '',
+            errorEvent: error
+          });
+        }
       });
-
       checkIfSocketHasOpennedTimeoutId = setTimeout(function () {
         if (!isSocketOpen) {
           fireEvent('error', {
@@ -338,96 +415,6 @@ function Async(params) {
           });
         }
       }, 65000);
-      webRTCClass.on('open', function () {
-        checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
-        checkIfSocketHasOpennedTimeoutId = null;
-        socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-        socketReconnectRetryInterval = null;
-        socketReconnectCheck && clearTimeout(socketReconnectCheck);
-        isSocketOpen = true;
-        retryStep.set(0);
-        socketState = socketStateType.OPEN;
-        fireEvent('stateChange', {
-          socketState: socketState,
-          timeUntilReconnect: 0,
-          deviceRegister: isDeviceRegister,
-          serverRegister: isServerRegister,
-          peerId: peerId
-        });
-      });
-      webRTCClass.on('message', function (msg) {
-        handleSocketMessage(msg);
-        if (onReceiveLogging) {
-          asyncLogger('Receive', msg);
-        }
-      });
-      webRTCClass.on('close', function (event) {
-        isSocketOpen = false;
-        isDeviceRegister = false;
-        oldPeerId = peerId;
-        socketState = socketStateType.CLOSED;
-        fireEvent('disconnect', event);
-        if (reconnOnClose.get() || reconnOnClose.getOld()) {
-          if (asyncLogging) {
-            if (workerId > 0) {
-              Utility.asyncStepLogger(workerId + '\t Reconnecting after ' + retryStep.get() + 's');
-            } else {
-              Utility.asyncStepLogger('Reconnecting after ' + retryStep.get() + 's');
-            }
-          }
-          logLevel.debug && console.debug("[Async][async.js] on connection close, retryStep:", retryStep.get());
-          fireEvent('stateChange', {
-            socketState: socketState,
-            timeUntilReconnect: 1000 * retryStep.get(),
-            deviceRegister: isDeviceRegister,
-            serverRegister: isServerRegister,
-            peerId: peerId
-          });
-          socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-          socketReconnectRetryInterval = null;
-          fireEvent("reconnecting", {
-            nextTime: retryStep.get()
-          });
-          socketReconnectRetryInterval = setTimeout(function () {
-            if (isLoggedOut) return;
-            webRTCClass.connect();
-          }, 1000 * retryStep.get());
-          if (retryStep.get() < 64) {
-            // retryStep += 3;
-            retryStep.set(retryStep.get() + 3);
-          }
-        } else {
-          socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
-          socketReconnectRetryInterval = null;
-          socketReconnectCheck && clearTimeout(socketReconnectCheck);
-          fireEvent('error', {
-            errorCode: 4005,
-            errorMessage: 'Connection Closed!'
-          });
-          socketState = socketStateType.CLOSED;
-          fireEvent('stateChange', {
-            socketState: socketState,
-            timeUntilReconnect: 0,
-            deviceRegister: isDeviceRegister,
-            serverRegister: isServerRegister,
-            peerId: peerId
-          });
-        }
-      });
-      webRTCClass.on('customError', function (error) {
-        fireEvent('error', {
-          errorCode: error.errorCode,
-          errorMessage: error.errorMessage,
-          errorEvent: error.errorEvent
-        });
-      });
-      webRTCClass.on('error', function (error) {
-        fireEvent('error', {
-          errorCode: '',
-          errorMessage: '',
-          errorEvent: error
-        });
-      });
       webRTCClass.connect();
     },
     handleSocketMessage = function handleSocketMessage(msg) {
@@ -752,7 +739,7 @@ function Async(params) {
         });
         socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
         socketReconnectRetryInterval = null;
-        socket && socket.close();
+        socket && socket.destroy();
         break;
       case 'webrtc':
         socketState = socketStateType.CLOSED;
@@ -765,7 +752,7 @@ function Async(params) {
         });
         socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
         socketReconnectRetryInterval = null;
-        webRTCClass && webRTCClass.close();
+        webRTCClass && webRTCClass.destroy();
         break;
     }
   };
@@ -800,8 +787,9 @@ function Async(params) {
 
           if (socket) {
             socket.destroy();
-            socket.close();
+            // socket.destroy();
           }
+
           break;
         case 'webrtc':
           socketState = socketStateType.CLOSED;
@@ -816,7 +804,6 @@ function Async(params) {
           // reconnectOnClose = false;
           if (webRTCClass) {
             webRTCClass.destroy();
-            webRTCClass.close();
           }
           break;
       }
@@ -831,51 +818,30 @@ function Async(params) {
   };
   var reconnectSocketTimeout;
   this.reconnectSocket = function () {
-    oldPeerId = peerId;
-    isDeviceRegister = false;
     isSocketOpen = false;
-    clearTimeouts();
+    isDeviceRegister = false;
+    oldPeerId = peerId;
     socketState = socketStateType.CLOSED;
+    fireEvent('disconnect', {});
+    retryStep.set(3);
+    logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
     fireEvent('stateChange', {
       socketState: socketState,
-      timeUntilReconnect: 0,
+      timeUntilReconnect: 1000 * retryStep.get(),
       deviceRegister: isDeviceRegister,
       serverRegister: isServerRegister,
       peerId: peerId
     });
     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
     socketReconnectRetryInterval = null;
-    if (protocol === "websocket") socket && socket.close();else if (protocol == "webrtc") {
-      webRTCClass && webRTCClass.close();
-    }
-
-    // let tmpReconnectOnClose = reconnectOnClose;
-    // reconnectOnClose = false;
-    if (reconnOnClose.getOld() == null) reconnOnClose.setOld(reconnOnClose.get());
-    reconnOnClose.set(false);
-    retryStep.set(0);
-    if (protocol === "websocket") {
-      socket.connect();
-    } else if (protocol == "webrtc") webRTCClass.connect();
-    reconnectSocketTimeout && clearTimeout(reconnectSocketTimeout);
-    reconnectSocketTimeout = null;
-    reconnectSocketTimeout = setTimeout(function () {
-      if (isLoggedOut) return;
-      // retryStep = 4;
-      retryStep.set(0);
-      // reconnectOnClose = tmpReconnectOnClose;
-      reconnOnClose.set(reconnOnClose.getOld());
-      if (socketState != socketStateType.OPEN) {
-        if (protocol === "websocket") {
-          socket.connect();
-        } else if (protocol == "webrtc") webRTCClass.connect();
-      }
-
-      // if(protocol === "websocket")
-      //     socket.connect();
-      // else if(protocol == "webrtc")
-      //     webRTCClass.connect()
-    }, 4000);
+    fireEvent("reconnecting", {
+      nextTime: retryStep.get()
+    });
+    if (protocol == "websocket") socket.destroy();else if (protocol == "webrtc") webRTCClass.destroy();
+    if (isLoggedOut) return;
+    setTimeout(function () {
+      if (protocol == "websocket") initSocket();else if (protocol == "webrtc") initWebrtc();
+    }, 100);
   };
   this.setRetryTimerTime = function (seconds) {
     retryStep.set(seconds);
