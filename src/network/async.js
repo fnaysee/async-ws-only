@@ -166,7 +166,6 @@ function Async(params) {
                     }
                 });
 
-
                 switch (protocol) {
                     case 'websocket':
                         initSocket();
@@ -176,6 +175,10 @@ function Async(params) {
                         break;
                 }
 
+                if (retryStep.get() < 64) {
+                    // retryStep += 3;
+                    retryStep.set(retryStep.get() + 3)
+                }
             }, 1000 * retryStep.get());
         },
 
@@ -918,7 +921,7 @@ function Async(params) {
 
         fireEvent('disconnect', {});
 
-        retryStep.set(3);
+        retryStep.set(0);
 
         logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
 
@@ -936,9 +939,9 @@ function Async(params) {
             nextTime: retryStep.get()
         });
         if(protocol == "websocket")
-            socket.destroy();
+            socket && socket.destroy();
         else if(protocol == "webrtc")
-            webRTCClass.destroy();
+            webRTCClass && webRTCClass.destroy();
 
         if (isLoggedOut)
             return;
@@ -948,6 +951,11 @@ function Async(params) {
                 initSocket();
             else if(protocol == "webrtc")
                 initWebrtc();
+
+            if (retryStep.get() < 64) {
+                // retryStep += 3;
+                retryStep.set(3);
+            }
         }, 100)
     };
 

@@ -45,7 +45,7 @@ function WebRTCClass(
             clientId: null,
             deviceId: null,
             apiCallRetries: {
-                register: 3,
+                register: 2,
                 getIce: 3,
                 addIce: 5
             },
@@ -181,9 +181,12 @@ function WebRTCClass(
         variables.isDestroyed = false;
         webrtcFunctions.createPeerConnection();
         console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
+    }
+
+    function waitForConnectionToOpen(){
         variables.dataChannelOpenTimeout = setTimeout(() => {
             if(!isDataChannelOpened()) {
-                console.log("[Async][webrtc] Closing because of wait timeout.")
+                console.log("[Async][webrtc] Closing because of wait timeout.");
                 publicized.close();
             }
         }, defaultConfig.connectionOpenWaitTime);
@@ -387,9 +390,10 @@ function WebRTCClass(
                     },
                 })
                     .then(function (response) {
-                        if(response.ok)
+                        if(response.ok) {
+                            waitForConnectionToOpen();
                             return response.json();
-                        else if(retries){
+                        } else if(retries) {
                             retryTheRequest(resolve, reject);
                             retries--;
                         } else reject();

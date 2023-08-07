@@ -173,6 +173,10 @@ function Async(params) {
             initWebrtc();
             break;
         }
+        if (retryStep.get() < 64) {
+          // retryStep += 3;
+          retryStep.set(retryStep.get() + 3);
+        }
       }, 1000 * retryStep.get());
     },
     asyncLogger = function asyncLogger(type, msg) {
@@ -823,7 +827,7 @@ function Async(params) {
     oldPeerId = peerId;
     socketState = socketStateType.CLOSED;
     fireEvent('disconnect', {});
-    retryStep.set(3);
+    retryStep.set(0);
     logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
     fireEvent('stateChange', {
       socketState: socketState,
@@ -837,10 +841,14 @@ function Async(params) {
     fireEvent("reconnecting", {
       nextTime: retryStep.get()
     });
-    if (protocol == "websocket") socket.destroy();else if (protocol == "webrtc") webRTCClass.destroy();
+    if (protocol == "websocket") socket && socket.destroy();else if (protocol == "webrtc") webRTCClass && webRTCClass.destroy();
     if (isLoggedOut) return;
     setTimeout(function () {
       if (protocol == "websocket") initSocket();else if (protocol == "webrtc") initWebrtc();
+      if (retryStep.get() < 64) {
+        // retryStep += 3;
+        retryStep.set(3);
+      }
     }, 100);
   };
   this.setRetryTimerTime = function (seconds) {
