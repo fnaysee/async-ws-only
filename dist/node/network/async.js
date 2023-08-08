@@ -165,6 +165,13 @@ function Async(params) {
             currentModuleInstance.reconnectSocket();
           }
         });
+        fireEvent('stateChange', {
+          socketState: socketStateType.CONNECTING,
+          timeUntilReconnect: 1000 * retryStep.get(),
+          deviceRegister: false,
+          serverRegister: false,
+          peerId: peerId
+        });
         switch (protocol) {
           case 'websocket':
             initSocket();
