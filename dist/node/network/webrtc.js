@@ -20,8 +20,7 @@ function WebRTCClass(_ref) {
     onMessage = _ref.onMessage,
     onError = _ref.onError,
     onCustomError = _ref.onCustomError,
-    onClose = _ref.onClose,
-    onDeviceId = _ref.onDeviceId;
+    onClose = _ref.onClose;
   var defaultConfig = {
       protocol: "https",
       baseUrl: "109.201.0.97",

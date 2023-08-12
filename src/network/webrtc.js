@@ -13,8 +13,7 @@ function WebRTCClass(
         onMessage,
         onError,
         onCustomError,
-        onClose,
-        onDeviceId
+        onClose
     }
 ) {
     let defaultConfig = {

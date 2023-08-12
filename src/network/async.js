@@ -342,7 +342,6 @@ function Async(params) {
                 logLevel: logLevel,
                 msgLogCallback,
                 connectionOpenWaitTime: params.connectionOpenWaitTime, //timeout time to open
-                onDeviceId,
                 onOpen: function (newDeviceId) {
                     checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
                     checkIfSocketHasOpennedTimeoutId = null
@@ -366,7 +365,7 @@ function Async(params) {
                         }
                     }
 
-                    onDeviceId(deviceId);
+                    onDeviceId && onDeviceId(deviceId);
                 },
                 onMessage: function (msg) {
                     handleSocketMessage(msg);
@@ -526,7 +525,7 @@ function Async(params) {
                 if (deviceId === undefined) {
                     deviceId = msg.content;
                 }
-                onDeviceId(deviceId);
+                onDeviceId && onDeviceId(deviceId);
             } else {
                 if (onReceiveLogging) {
                     if (workerId > 0) {
