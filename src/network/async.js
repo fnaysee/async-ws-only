@@ -105,7 +105,8 @@ function Async(params) {
         webrtcConfig = (params.webrtcConfig ? params.webrtcConfig : null),
         isLoggedOut = false,
         onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero,
-        msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null;
+        msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null,
+        onDeviceId = typeof params.onDeviceId == "function" ? params.onDeviceId : null;
 
     const reconnOnClose = {
         value: false,
@@ -229,7 +230,8 @@ function Async(params) {
                         timeUntilReconnect: 0,
                         deviceRegister: isDeviceRegister,
                         serverRegister: isServerRegister,
-                        peerId: peerId
+                        peerId: peerId,
+                        deviceId
                     });
                 },
                 onMessage: function (msg) {
@@ -340,16 +342,15 @@ function Async(params) {
                 logLevel: logLevel,
                 msgLogCallback,
                 connectionOpenWaitTime: params.connectionOpenWaitTime, //timeout time to open
-                onOpen: function () {
+                onDeviceId,
+                onOpen: function (newDeviceId) {
                     checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
                     checkIfSocketHasOpennedTimeoutId = null
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
                     socketReconnectRetryInterval = null;
                     socketReconnectCheck && clearTimeout(socketReconnectCheck);
-
                     isSocketOpen = true;
                     retryStep.set(0);
-
                     socketState = socketStateType.OPEN;
                     fireEvent('stateChange', {
                         socketState: socketState,
@@ -358,6 +359,14 @@ function Async(params) {
                         serverRegister: isServerRegister,
                         peerId: peerId
                     });
+
+                    if(newDeviceId) {
+                        if (deviceId === undefined) {
+                            deviceId = newDeviceId;
+                        }
+                    }
+
+                    onDeviceId(deviceId);
                 },
                 onMessage: function (msg) {
                     handleSocketMessage(msg);
@@ -516,10 +525,8 @@ function Async(params) {
             if (msg.content) {
                 if (deviceId === undefined) {
                     deviceId = msg.content;
-                    registerDevice();
-                } else {
-                    registerDevice();
                 }
+                onDeviceId(deviceId);
             } else {
                 if (onReceiveLogging) {
                     if (workerId > 0) {
@@ -531,16 +538,16 @@ function Async(params) {
             }
         },
 
-        registerDevice = function (isRetry) {
-            if (asyncLogging) {
-                if (workerId > 0) {
-                    Utility.asyncStepLogger(workerId + '\t Registering Device');
-                } else {
-                    Utility.asyncStepLogger('Registering Device');
-                }
-            }
+        registerDevice = function (deviceId) {
+            // if (asyncLogging) {
+            //     if (workerId > 0) {
+            //         Utility.asyncStepLogger(workerId + '\t Registering Device');
+            //     } else {
+            //         Utility.asyncStepLogger('Registering Device');
+            //     }
+            // }
 
-            var content = {
+            let content = {
                 appId: appId,
                 deviceId: deviceId
             };
@@ -548,7 +555,6 @@ function Async(params) {
             if (peerId !== undefined) {
                 content.refresh = true;
                 content.renew = false;
-
             } else {
                 content.renew = true;
                 content.refresh = false;
@@ -556,7 +562,7 @@ function Async(params) {
 
             pushSendData({
                 type: asyncMessageType.DEVICE_REGISTER,
-                content: content
+                content
             });
         },
 
@@ -972,6 +978,8 @@ function Async(params) {
     }
 
     this.generateUUID = Utility.generateUUID;
+
+    this.registerDevice = registerDevice;
 
     init();
 }

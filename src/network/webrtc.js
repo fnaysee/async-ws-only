@@ -13,7 +13,8 @@ function WebRTCClass(
         onMessage,
         onError,
         onCustomError,
-        onClose
+        onClose,
+        onDeviceId
     }
 ) {
     let defaultConfig = {
@@ -330,14 +331,7 @@ function WebRTCClass(
             console.log("[Async][webrtc] dataChannel open");
             variables.isDataChannelOpened = true;
             variables.pingController.resetPingLoop();
-            onOpen();
-
-            const deviceRegister = {
-                "type": "2",
-                "content": {"deviceId": variables.deviceId, "appId": "PodChat", "refresh": false, "renew": true}
-            };
-            deviceRegister.content = JSON.stringify(deviceRegister.content)
-            variables.dataChannel.send(JSON.stringify(deviceRegister));
+            onOpen(variables.deviceId);
         },
 
         onmessage: function (event) {

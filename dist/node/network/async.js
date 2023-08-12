@@ -110,7 +110,8 @@ function Async(params) {
     webrtcConfig = params.webrtcConfig ? params.webrtcConfig : null,
     isLoggedOut = false,
     onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero,
-    msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null;
+    msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null,
+    onDeviceId = typeof params.onDeviceId == "function" ? params.onDeviceId : null;
   var reconnOnClose = {
     value: false,
     oldValue: null,
@@ -222,7 +223,8 @@ function Async(params) {
             timeUntilReconnect: 0,
             deviceRegister: isDeviceRegister,
             serverRegister: isServerRegister,
-            peerId: peerId
+            peerId: peerId,
+            deviceId: deviceId
           });
         },
         onMessage: function onMessage(msg) {
@@ -325,7 +327,8 @@ function Async(params) {
         msgLogCallback: msgLogCallback,
         connectionOpenWaitTime: params.connectionOpenWaitTime,
         //timeout time to open
-        onOpen: function onOpen() {
+        onDeviceId: onDeviceId,
+        onOpen: function onOpen(newDeviceId) {
           checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
           checkIfSocketHasOpennedTimeoutId = null;
           socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
@@ -341,6 +344,12 @@ function Async(params) {
             serverRegister: isServerRegister,
             peerId: peerId
           });
+          if (newDeviceId) {
+            if (deviceId === undefined) {
+              deviceId = newDeviceId;
+            }
+          }
+          onDeviceId(deviceId);
         },
         onMessage: function onMessage(msg) {
           handleSocketMessage(msg);
@@ -478,10 +487,8 @@ function Async(params) {
       if (msg.content) {
         if (deviceId === undefined) {
           deviceId = msg.content;
-          registerDevice();
-        } else {
-          registerDevice();
         }
+        onDeviceId(deviceId);
       } else {
         if (onReceiveLogging) {
           if (workerId > 0) {
@@ -492,14 +499,15 @@ function Async(params) {
         }
       }
     },
-    registerDevice = function registerDevice(isRetry) {
-      if (asyncLogging) {
-        if (workerId > 0) {
-          Utility.asyncStepLogger(workerId + '\t Registering Device');
-        } else {
-          Utility.asyncStepLogger('Registering Device');
-        }
-      }
+    registerDevice = function registerDevice(deviceId) {
+      // if (asyncLogging) {
+      //     if (workerId > 0) {
+      //         Utility.asyncStepLogger(workerId + '\t Registering Device');
+      //     } else {
+      //         Utility.asyncStepLogger('Registering Device');
+      //     }
+      // }
+
       var content = {
         appId: appId,
         deviceId: deviceId
@@ -862,6 +870,7 @@ function Async(params) {
     retryStep.set(seconds);
   };
   this.generateUUID = Utility.generateUUID;
+  this.registerDevice = registerDevice;
   init();
 }
 module.exports = Async;
