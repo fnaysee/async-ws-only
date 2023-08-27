@@ -110,6 +110,7 @@ function Async(params) {
     webrtcConfig = params.webrtcConfig ? params.webrtcConfig : null,
     isLoggedOut = false,
     onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero,
+    asyncLogCallback = typeof params.asyncLogCallback == "function" ? params.asyncLogCallback : null,
     msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null,
     onDeviceId = typeof params.onDeviceId == "function" ? params.onDeviceId : null;
   var reconnOnClose = {
@@ -157,11 +158,13 @@ function Async(params) {
       socketReconnectRetryInterval = setTimeout(function () {
         if (isLoggedOut) return;
         window.addEventListener('online', function () {
+          asyncLogCallback && asyncLogCallback("async", "window.online", "");
           if (!isSocketOpen) {
             currentModuleInstance.reconnectSocket();
           }
         });
         window.addEventListener('offline', function () {
+          asyncLogCallback && asyncLogCallback("async", "window.offline", "");
           if (isSocketOpen) {
             currentModuleInstance.reconnectSocket();
           }
@@ -210,6 +213,7 @@ function Async(params) {
         connectionCheckTimeoutThreshold: params.connectionCheckTimeoutThreshold,
         logLevel: logLevel,
         msgLogCallback: msgLogCallback,
+        asyncLogCallback: asyncLogCallback,
         onOpen: function onOpen() {
           checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
           socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
@@ -325,6 +329,7 @@ function Async(params) {
         //ping
         logLevel: logLevel,
         msgLogCallback: msgLogCallback,
+        asyncLogCallback: asyncLogCallback,
         connectionOpenWaitTime: params.connectionOpenWaitTime,
         //timeout time to open
         onOpen: function onOpen(newDeviceId) {
@@ -384,8 +389,10 @@ function Async(params) {
               nextTime: retryStep.get()
             });
             webRTCClass.destroy();
+            asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "before: " + retryStep.get());
             socketReconnectRetryInterval = setTimeout(function () {
               if (isLoggedOut) return;
+              asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "after");
               initWebrtc();
               // webRTCClass.connect();
             }, 1000 * retryStep.get());

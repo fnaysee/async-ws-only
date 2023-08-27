@@ -20,7 +20,8 @@ function WebRTCClass(_ref) {
     onMessage = _ref.onMessage,
     onError = _ref.onError,
     onCustomError = _ref.onCustomError,
-    onClose = _ref.onClose;
+    onClose = _ref.onClose,
+    asyncLogCallback = _ref.asyncLogCallback;
   var defaultConfig = {
       protocol: "https",
       baseUrl: "109.201.0.97",
@@ -148,6 +149,7 @@ function WebRTCClass(_ref) {
             config.timeoutIds.third = setTimeout(function () {
               console.log("[Async][webrtc] Closing because of ping timeout.");
               defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
+              asyncLogCallback && asyncLogCallback("webrtc", "setPingTimeout", "closing");
               publicized.close();
             }, 2000);
           }, 2000);
@@ -171,6 +173,7 @@ function WebRTCClass(_ref) {
     variables.dataChannelOpenTimeout = setTimeout(function () {
       if (!isDataChannelOpened()) {
         console.log("[Async][webrtc] Closing because of wait timeout.");
+        asyncLogCallback && asyncLogCallback("webrtc", "dataChannelOpenTimeout", "closing");
         publicized.close();
       }
     }, defaultConfig.connectionOpenWaitTime);
@@ -181,10 +184,17 @@ function WebRTCClass(_ref) {
         variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
         console.log("[Async][webrtc] Created peer connection.");
       } catch (error) {
+        asyncLogCallback && asyncLogCallback("webrtc", "createPeerConnection", "closing");
         publicized.close();
         console.error("[Async][webrtc] Webrtc Peer Create Error: ", error.message);
         return;
       }
+      variables.peerConnection.onconnectionstatechange = function (event) {
+        asyncLogCallback && asyncLogCallback("webrtc", "onconnectionstatechange", variables.peerConnection.connectionState);
+      };
+      variables.peerConnection.oniceconnectionstatechange = function (event) {
+        asyncLogCallback && asyncLogCallback("webrtc", "oniceconnectionstatechange", variables.peerConnection.connectionState);
+      };
       variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
       variables.peerConnection.onicecandidate = function (event) {
         if (event.candidate) {
@@ -207,7 +217,8 @@ function WebRTCClass(_ref) {
         webrtcFunctions.processAnswer(result.sdpAnswer);
       }
     },
-    signalingStateChangeCallback: function signalingStateChangeCallback() {
+    signalingStateChangeCallback: function signalingStateChangeCallback(signalingStateEvent) {
+      asyncLogCallback && asyncLogCallback("webrtc", "signalingStateChangeCallback", variables.peerConnection.signalingState);
       if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
         // handshakingFunctions.getCandidates().catch()
         webrtcFunctions.addTheCandidates();
@@ -298,6 +309,7 @@ function WebRTCClass(_ref) {
   };
   var dataChannelCallbacks = {
     onopen: function onopen(event) {
+      asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onopen", event);
       console.log("[Async][webrtc] dataChannel open");
       variables.isDataChannelOpened = true;
       variables.pingController.resetPingLoop();
@@ -317,12 +329,14 @@ function WebRTCClass(_ref) {
       });
     },
     onerror: function onerror(error) {
+      asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onerror", error);
       console.log("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
       defaultConfig.logLevel.debug && console.debug("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
       onError();
       publicized.close();
     },
     onclose: function onclose(event) {
+      asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onclose", event);
       console.log("[Async][webrtc] dataChannel.onclose happened. EventData:", event);
       publicized.close();
     }
@@ -361,6 +375,7 @@ function WebRTCClass(_ref) {
             retryTheRequest(resolve, reject);
             retries--;
           } else {
+            asyncLogCallback && asyncLogCallback("webrtc", "register.catch", "closing");
             publicized.close();
           }
           console.error(err);
@@ -496,11 +511,13 @@ function WebRTCClass(_ref) {
   publicized.emit = webrtcFunctions.sendData;
   publicized.connect = connect;
   publicized.close = function () {
+    asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing");
     removeCallbacks();
     resetVariables();
   };
   publicized.destroy = function () {
     variables.isDestroyed = true;
+    asyncLogCallback && asyncLogCallback("webrtc", "publicized.destroy", "closing");
     publicized.close();
     onOpen = null;
     onClose = null;
