@@ -63,8 +63,7 @@ function WebRTCClass(_ref) {
       subdomain: null,
       isDestroyed: false,
       dataChannelOpenTimeout: null,
-      isDataChannelOpened: false,
-      isClosing: false
+      isDataChannelOpened: false
     };
   var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
@@ -513,8 +512,6 @@ function WebRTCClass(_ref) {
   publicized.emit = webrtcFunctions.sendData;
   publicized.connect = connect;
   publicized.close = function () {
-    if (variables.isClosing) return;
-    variables.isClosing = true;
     asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing");
     removeCallbacks();
     resetVariables();
