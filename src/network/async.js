@@ -160,12 +160,14 @@ function Async(params) {
                 window.addEventListener('online', () => {
                     asyncLogCallback && asyncLogCallback("async", "window.online", "");
                     if(!isSocketOpen){
+                        alert('window.online reconnectSocket()');
                         currentModuleInstance.reconnectSocket();
                     }
                 });
                 window.addEventListener('offline', () => {
                     asyncLogCallback && asyncLogCallback("async", "window.offline", "");
                     if(isSocketOpen) {
+                        alert('window.offline, reconnectSocket()');
                         currentModuleInstance.reconnectSocket();
                     }
                 });
@@ -966,6 +968,14 @@ function Async(params) {
             return;
 
         setTimeout(()=>{
+            fireEvent('stateChange', {
+                socketState: socketStateType.CONNECTING,
+                timeUntilReconnect: 0,
+                deviceRegister: false,
+                serverRegister: false,
+                peerId: peerId
+            })
+
             if(protocol == "websocket")
                 initSocket();
             else if(protocol == "webrtc")

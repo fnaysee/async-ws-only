@@ -328,6 +328,7 @@ function WebRTCClass(
                     variables.dataChannel.send(stringData);
                 }
             } catch (error) {
+                asyncLogCallback && asyncLogCallback("webrtc", "webrtcFunctions.sendData.catch", error);
                 onCustomError({
                     errorCode: 4004,
                     errorMessage: "Error in channel send message!",
@@ -568,7 +569,7 @@ function WebRTCClass(
     publicized.emit = webrtcFunctions.sendData;
     publicized.connect = connect;
     publicized.close = function () {
-        asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing")
+        asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing");
         removeCallbacks();
         resetVariables();
     }

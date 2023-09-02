@@ -63,7 +63,8 @@ function WebRTCClass(_ref) {
       subdomain: null,
       isDestroyed: false,
       dataChannelOpenTimeout: null,
-      isDataChannelOpened: false
+      isDataChannelOpened: false,
+      isClosing: false
     };
   var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
@@ -299,6 +300,7 @@ function WebRTCClass(_ref) {
           variables.dataChannel.send(stringData);
         }
       } catch (error) {
+        asyncLogCallback && asyncLogCallback("webrtc", "webrtcFunctions.sendData.catch", error);
         onCustomError({
           errorCode: 4004,
           errorMessage: "Error in channel send message!",
@@ -511,6 +513,8 @@ function WebRTCClass(_ref) {
   publicized.emit = webrtcFunctions.sendData;
   publicized.connect = connect;
   publicized.close = function () {
+    if (variables.isClosing) return;
+    variables.isClosing = true;
     asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing");
     removeCallbacks();
     resetVariables();
