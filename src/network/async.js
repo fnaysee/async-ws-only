@@ -107,7 +107,8 @@ function Async(params) {
         onStartWithRetryStepGreaterThanZero = params.onStartWithRetryStepGreaterThanZero,
         asyncLogCallback = typeof params.asyncLogCallback == "function" ? params.asyncLogCallback : null,
         msgLogCallback = typeof params.msgLogCallback == "function" ? params.msgLogCallback : null,
-        onDeviceId = typeof params.onDeviceId == "function" ? params.onDeviceId : null;
+        onDeviceId = typeof params.onDeviceId == "function" ? params.onDeviceId : null,
+        isConnecting = false;
 
     const reconnOnClose = {
         value: false,
@@ -180,14 +181,7 @@ function Async(params) {
                     peerId: peerId
                 })
 
-                switch (protocol) {
-                    case 'websocket':
-                        initSocket();
-                        break;
-                    case 'webrtc':
-                        initWebrtc();
-                        break;
-                }
+                maybeReconnect();
 
                 if (retryStep.get() < 64) {
                     // retryStep += 3;
@@ -195,7 +189,6 @@ function Async(params) {
                 }
             }, 1000 * retryStep.get());
         },
-
         asyncLogger = function (type, msg) {
             Utility.asyncLogger({
                 protocol: protocol,
@@ -222,6 +215,8 @@ function Async(params) {
                 msgLogCallback,
                 asyncLogCallback,
                 onOpen: function () {
+                    isConnecting = false;
+
                     checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
                     socketReconnectRetryInterval = null;
@@ -252,6 +247,7 @@ function Async(params) {
                     isDeviceRegister = false;
                     oldPeerId = peerId;
                     socketState = socketStateType.CLOSED;
+                    isConnecting = false;
 
                     // socketState = socketStateType.CLOSED;
                     //
@@ -295,7 +291,7 @@ function Async(params) {
                             if (isLoggedOut)
                                 return;
 
-                            initSocket();
+                            maybeReconnect();
                         }, 1000 * retryStep.get());
 
                         if (retryStep.get() < 64) {
@@ -350,6 +346,7 @@ function Async(params) {
                 asyncLogCallback,
                 connectionOpenWaitTime: params.connectionOpenWaitTime, //timeout time to open
                 onOpen: function (newDeviceId) {
+                    isConnecting = false;
                     checkIfSocketHasOpennedTimeoutId && clearTimeout(checkIfSocketHasOpennedTimeoutId);
                     checkIfSocketHasOpennedTimeoutId = null
                     socketReconnectRetryInterval && clearTimeout(socketReconnectRetryInterval);
@@ -385,6 +382,7 @@ function Async(params) {
                     isDeviceRegister = false;
                     oldPeerId = peerId;
                     socketState = socketStateType.CLOSED;
+                    isConnecting = false;
 
                     fireEvent('disconnect', event);
 
@@ -418,7 +416,7 @@ function Async(params) {
                             if (isLoggedOut)
                                 return;
                             asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "after");
-                            initWebrtc()
+                            maybeReconnect();
                             // webRTCClass.connect();
                         }, 1000 * retryStep.get());
 
@@ -758,6 +756,22 @@ function Async(params) {
             // }
         };
 
+    function maybeReconnect() {
+        if(isConnecting)
+            return;
+
+        isConnecting = true;
+
+        switch (protocol) {
+            case 'websocket':
+                initSocket();
+                break;
+            case 'webrtc':
+                initWebrtc();
+                break;
+        }
+    }
+
     /*******************************************************
      *             P U B L I C   M E T H O D S             *
      *******************************************************/
@@ -935,6 +949,9 @@ function Async(params) {
 
     let reconnectSocketTimeout;
     this.reconnectSocket = function () {
+        if(isConnecting)
+            return;
+
         isSocketOpen = false;
         isDeviceRegister = false;
         oldPeerId = peerId;
@@ -976,10 +993,7 @@ function Async(params) {
                 peerId: peerId
             })
 
-            if(protocol == "websocket")
-                initSocket();
-            else if(protocol == "webrtc")
-                initWebrtc();
+            maybeReconnect();
 
             if (retryStep.get() < 64) {
                 // retryStep += 3;
