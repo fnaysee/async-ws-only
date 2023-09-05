@@ -161,14 +161,14 @@ function Async(params) {
                 window.addEventListener('online', () => {
                     asyncLogCallback && asyncLogCallback("async", "window.online", "");
                     if(!isSocketOpen){
-                        alert('window.online reconnectSocket()');
+                        // alert('window.online reconnectSocket()');
                         currentModuleInstance.reconnectSocket();
                     }
                 });
                 window.addEventListener('offline', () => {
                     asyncLogCallback && asyncLogCallback("async", "window.offline", "");
                     if(isSocketOpen) {
-                        alert('window.offline, reconnectSocket()');
+                        // alert('window.offline, reconnectSocket()');
                         currentModuleInstance.reconnectSocket();
                     }
                 });
