@@ -63,7 +63,8 @@ function WebRTCClass(_ref) {
       subdomain: null,
       isDestroyed: false,
       dataChannelOpenTimeout: null,
-      isDataChannelOpened: false
+      isDataChannelOpened: false,
+      controller: new AbortController()
     };
   var config = {};
   if (baseUrl) config.baseUrl = baseUrl;
@@ -352,6 +353,11 @@ function WebRTCClass(_ref) {
       function promiseHandler(resolve, reject) {
         if (variables.isDestroyed) return;
         var registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint;
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function () {
+          return controller.abort();
+        }, 2500);
+        console.log("[webrtc] register()");
         fetch(registerEndPoint, {
           method: "POST",
           body: JSON.stringify({
@@ -360,22 +366,36 @@ function WebRTCClass(_ref) {
           headers: {
             "Content-Type": "application/json"
             // 'Content-Type': 'application/x-www-form-urlencoded',
-          }
+          },
+
+          signal: controller.signal
         }).then(function (response) {
+          clearTimeout(timeoutId);
           if (response.ok) {
+            console.log("[webrtc] register().success");
             waitForConnectionToOpen();
             return response.json();
           } else if (retries) {
+            console.log("[webrtc] register().failed", {
+              response: response
+            });
             retryTheRequest(resolve, reject);
             retries--;
           } else reject();
         }).then(function (result) {
           return resolve(result);
         })["catch"](function (err) {
+          console.log("[webrtc] register().catch.failed", {
+            err: err
+          });
+          clearTimeout(timeoutId);
           if (retries) {
             retryTheRequest(resolve, reject);
             retries--;
           } else {
+            console.log("[webrtc] register().catch.failed.closing", {
+              err: err
+            });
             asyncLogCallback && asyncLogCallback("webrtc", "register.catch", "closing");
             publicized.close();
           }

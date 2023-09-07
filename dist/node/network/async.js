@@ -162,6 +162,7 @@ function Async(params) {
           asyncLogCallback && asyncLogCallback("async", "window.online", "");
           if (!isSocketOpen) {
             // alert('window.online reconnectSocket()');
+            console.log("[async.js] window.online");
             currentModuleInstance.reconnectSocket();
           }
         });
@@ -169,6 +170,7 @@ function Async(params) {
           asyncLogCallback && asyncLogCallback("async", "window.offline", "");
           if (isSocketOpen) {
             // alert('window.offline, reconnectSocket()');
+            console.log("[async.js] window.offline");
             currentModuleInstance.reconnectSocket();
           }
         });
