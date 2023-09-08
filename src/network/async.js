@@ -762,6 +762,14 @@ function Async(params) {
         if(isConnecting)
             return;
 
+        fireEvent('stateChange', {
+            socketState: socketStateType.CONNECTING,
+            timeUntilReconnect: 0,
+            deviceRegister: false,
+            serverRegister: false,
+            peerId: peerId
+        });
+
         isConnecting = true;
 
         switch (protocol) {
@@ -987,14 +995,6 @@ function Async(params) {
             return;
 
         setTimeout(()=>{
-            fireEvent('stateChange', {
-                socketState: socketStateType.CONNECTING,
-                timeUntilReconnect: 0,
-                deviceRegister: false,
-                serverRegister: false,
-                peerId: peerId
-            })
-
             maybeReconnect();
 
             if (retryStep.get() < 64) {

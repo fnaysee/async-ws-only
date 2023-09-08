@@ -698,6 +698,13 @@ function Async(params) {
 
   function maybeReconnect() {
     if (isConnecting) return;
+    fireEvent('stateChange', {
+      socketState: socketStateType.CONNECTING,
+      timeUntilReconnect: 0,
+      deviceRegister: false,
+      serverRegister: false,
+      peerId: peerId
+    });
     isConnecting = true;
     switch (protocol) {
       case 'websocket':
@@ -881,13 +888,6 @@ function Async(params) {
     if (protocol == "websocket") socket && socket.destroy();else if (protocol == "webrtc") webRTCClass && webRTCClass.destroy();
     if (isLoggedOut) return;
     setTimeout(function () {
-      fireEvent('stateChange', {
-        socketState: socketStateType.CONNECTING,
-        timeUntilReconnect: 0,
-        deviceRegister: false,
-        serverRegister: false,
-        peerId: peerId
-      });
       maybeReconnect();
       if (retryStep.get() < 64) {
         // retryStep += 3;
