@@ -174,13 +174,6 @@ function Async(params) {
             currentModuleInstance.reconnectSocket();
           }
         });
-        fireEvent('stateChange', {
-          socketState: socketStateType.CONNECTING,
-          timeUntilReconnect: 1000 * retryStep.get(),
-          deviceRegister: false,
-          serverRegister: false,
-          peerId: peerId
-        });
         maybeReconnect();
         if (retryStep.get() < 64) {
           // retryStep += 3;
