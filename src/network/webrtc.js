@@ -409,7 +409,6 @@ function WebRTCClass(
                     .then(function (response) {
                         clearTimeout(timeoutId);
                         if(response.ok) {
-                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register success, result: ' + JSON.stringify(response.json()) })
                             console.log("[webrtc] register().success")
                             waitForConnectionToOpen();
                             return response.json();
@@ -420,7 +419,10 @@ function WebRTCClass(
                             retries--;
                         } else reject();
                     })
-                    .then(result => resolve(result))
+                    .then(result => {
+                        logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register success, result: ' + JSON.stringify(result) })
+                        resolve(result)
+                    })
                     .catch(err => {
                         logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register catch.failed' + JSON.stringify(err)})
                         console.log("[webrtc] register().catch.failed", {err})
@@ -518,7 +520,6 @@ function WebRTCClass(
                 })
                     .then(function (response) {
                         if(response.ok){
-                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'addIce', message: 'addIce success, result: ' + JSON.stringify(response.json()) })
                             return response.json();
                         }
                         else if(retries){
@@ -527,6 +528,7 @@ function WebRTCClass(
                         } else reject();
                     })
                     .then(function (result) {
+                        logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'addIce', message: 'addIce success, result: ' + JSON.stringify(result) })
                         resolve(result.iceCandidates);
                     })
                     .catch(err => {

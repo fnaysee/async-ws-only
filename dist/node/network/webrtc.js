@@ -380,12 +380,6 @@ function WebRTCClass(_ref) {
         }).then(function (response) {
           clearTimeout(timeoutId);
           if (response.ok) {
-            logServer.log({
-              time: new Date().toLocaleString(),
-              module: 'webrtc',
-              method: 'register',
-              message: ' register success, result: ' + JSON.stringify(response.json())
-            });
             console.log("[webrtc] register().success");
             waitForConnectionToOpen();
             return response.json();
@@ -403,7 +397,13 @@ function WebRTCClass(_ref) {
             retries--;
           } else reject();
         }).then(function (result) {
-          return resolve(result);
+          logServer.log({
+            time: new Date().toLocaleString(),
+            module: 'webrtc',
+            method: 'register',
+            message: ' register success, result: ' + JSON.stringify(result)
+          });
+          resolve(result);
         })["catch"](function (err) {
           logServer.log({
             time: new Date().toLocaleString(),
@@ -510,18 +510,18 @@ function WebRTCClass(_ref) {
           }
         }).then(function (response) {
           if (response.ok) {
-            logServer.log({
-              time: new Date().toLocaleString(),
-              module: 'webrtc',
-              method: 'addIce',
-              message: 'addIce success, result: ' + JSON.stringify(response.json())
-            });
             return response.json();
           } else if (retries) {
             retryTheRequest(resolve, reject);
             retries--;
           } else reject();
         }).then(function (result) {
+          logServer.log({
+            time: new Date().toLocaleString(),
+            module: 'webrtc',
+            method: 'addIce',
+            message: 'addIce success, result: ' + JSON.stringify(result)
+          });
           resolve(result.iceCandidates);
         })["catch"](function (err) {
           if (retries) {
