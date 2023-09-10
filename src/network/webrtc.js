@@ -1,5 +1,5 @@
 import * as fflate from "fflate"
-
+import * as logServer from "./logServer"
 function WebRTCClass(
     {
         baseUrl,
@@ -183,7 +183,7 @@ function WebRTCClass(
     function connect() {
         variables.isDestroyed = false;
         webrtcFunctions.createPeerConnection();
-        console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
+        // console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
     }
 
     function waitForConnectionToOpen(){
@@ -394,6 +394,7 @@ function WebRTCClass(
                 let controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 2500);
                 console.log("[webrtc] register()")
+                logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: 'send register request'})
                 fetch(registerEndPoint, {
                     method: "POST",
                     body: JSON.stringify({
@@ -408,17 +409,20 @@ function WebRTCClass(
                     .then(function (response) {
                         clearTimeout(timeoutId);
                         if(response.ok) {
+                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register success, result: ' + JSON.stringify(response.json()) })
                             console.log("[webrtc] register().success")
                             waitForConnectionToOpen();
                             return response.json();
                         } else if(retries) {
-                            console.log("[webrtc] register().failed", {response})
+                            console.log("[webrtc] register().failed", {response});
+                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register failed'})
                             retryTheRequest(resolve, reject);
                             retries--;
                         } else reject();
                     })
                     .then(result => resolve(result))
                     .catch(err => {
+                        logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register catch.failed' + JSON.stringify(err)})
                         console.log("[webrtc] register().catch.failed", {err})
                         clearTimeout(timeoutId);
                         if(retries){
@@ -426,6 +430,7 @@ function WebRTCClass(
                             retries--;
                         } else {
                             console.log("[webrtc] register().catch.failed.closing", {err})
+                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'register', message: ' register catch.failed' + JSON.stringify(err)});
                             asyncLogCallback && asyncLogCallback("webrtc", "register.catch", "closing");
                             publicized.close();
                         }
@@ -499,6 +504,7 @@ function WebRTCClass(
                 if(variables.isDestroyed)
                     return;
 
+                logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'addIce', message: 'send addIce request' })
                 fetch(addIceCandidateEndPoint, {
                     method: "POST",
                     body: JSON.stringify({
@@ -511,8 +517,10 @@ function WebRTCClass(
                     },
                 })
                     .then(function (response) {
-                        if(response.ok)
+                        if(response.ok){
+                            logServer.log({time: new Date().toLocaleString(),module: 'webrtc', method: 'addIce', message: 'addIce success, result: ' + JSON.stringify(response.json()) })
                             return response.json();
+                        }
                         else if(retries){
                             retryTheRequest(resolve, reject);
                             retries--;

@@ -2,6 +2,7 @@ import Socket from "./socket";
 import WebRTCClass from "./webrtc";
 import PodUtility from "../utility/utility.js";
 import LogLevel from "../utility/logger.js";
+import * as logServer from "./logServer";
 
 /*
  * Async module to handle async messaging
@@ -409,6 +410,8 @@ function Async(params) {
                         socketReconnectRetryInterval = setTimeout(function () {
                             if (isLoggedOut)
                                 return;
+
+                            logServer.log({time: new Date().toLocaleString(),module: 'async.js', method: 'webrtcclass.onClose.reconnect', message: 'webrtc going to reconnect...' })
                             asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "after");
                             maybeReconnect();
                             // webRTCClass.connect();
@@ -987,6 +990,7 @@ function Async(params) {
             return;
 
         setTimeout(()=>{
+            logServer.log({time: new Date().toLocaleString(),module: 'async.js', method: 'reconnectSocket', message: 'Reconnect by call to method: reconnectSocket... ' });
             maybeReconnect();
 
             if (retryStep.get() < 64) {

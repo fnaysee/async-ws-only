@@ -1,6 +1,7 @@
 "use strict";
 
 var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
+var _typeof = require("@babel/runtime/helpers/typeof");
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
@@ -9,6 +10,9 @@ var _socket = _interopRequireDefault(require("./socket"));
 var _webrtc = _interopRequireDefault(require("./webrtc"));
 var _utility = _interopRequireDefault(require("../utility/utility.js"));
 var _logger = _interopRequireDefault(require("../utility/logger.js"));
+var logServer = _interopRequireWildcard(require("./logServer"));
+function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
+function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 /*
  * Async module to handle async messaging
  * @module Async
@@ -387,6 +391,12 @@ function Async(params) {
             asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "before: " + retryStep.get());
             socketReconnectRetryInterval = setTimeout(function () {
               if (isLoggedOut) return;
+              logServer.log({
+                time: new Date().toLocaleString(),
+                module: 'async.js',
+                method: 'webrtcclass.onClose.reconnect',
+                message: 'webrtc going to reconnect...'
+              });
               asyncLogCallback && asyncLogCallback("async", "closed.reconnect", "after");
               maybeReconnect();
               // webRTCClass.connect();
@@ -881,6 +891,12 @@ function Async(params) {
     if (protocol == "websocket") socket && socket.destroy();else if (protocol == "webrtc") webRTCClass && webRTCClass.destroy();
     if (isLoggedOut) return;
     setTimeout(function () {
+      logServer.log({
+        time: new Date().toLocaleString(),
+        module: 'async.js',
+        method: 'reconnectSocket',
+        message: 'Reconnect by call to method: reconnectSocket... '
+      });
       maybeReconnect();
       if (retryStep.get() < 64) {
         // retryStep += 3;

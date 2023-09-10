@@ -5,6 +5,7 @@ var _typeof = require("@babel/runtime/helpers/typeof");
 var _regenerator = _interopRequireDefault(require("@babel/runtime/regenerator"));
 var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/asyncToGenerator"));
 var fflate = _interopRequireWildcard(require("fflate"));
+var logServer = _interopRequireWildcard(require("./logServer"));
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function _getRequireWildcardCache(nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
 function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || _typeof(obj) !== "object" && typeof obj !== "function") { return { "default": obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj["default"] = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 function WebRTCClass(_ref) {
@@ -168,8 +169,9 @@ function WebRTCClass(_ref) {
   function connect() {
     variables.isDestroyed = false;
     webrtcFunctions.createPeerConnection();
-    console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
+    // console.log("[Async][webrtc] defaultConfig.connectionOpenWaitTime", defaultConfig.connectionOpenWaitTime);
   }
+
   function waitForConnectionToOpen() {
     variables.dataChannelOpenTimeout = setTimeout(function () {
       if (!isDataChannelOpened()) {
@@ -358,6 +360,12 @@ function WebRTCClass(_ref) {
           return controller.abort();
         }, 2500);
         console.log("[webrtc] register()");
+        logServer.log({
+          time: new Date().toLocaleString(),
+          module: 'webrtc',
+          method: 'register',
+          message: 'send register request'
+        });
         fetch(registerEndPoint, {
           method: "POST",
           body: JSON.stringify({
@@ -372,6 +380,12 @@ function WebRTCClass(_ref) {
         }).then(function (response) {
           clearTimeout(timeoutId);
           if (response.ok) {
+            logServer.log({
+              time: new Date().toLocaleString(),
+              module: 'webrtc',
+              method: 'register',
+              message: ' register success, result: ' + JSON.stringify(response.json())
+            });
             console.log("[webrtc] register().success");
             waitForConnectionToOpen();
             return response.json();
@@ -379,12 +393,24 @@ function WebRTCClass(_ref) {
             console.log("[webrtc] register().failed", {
               response: response
             });
+            logServer.log({
+              time: new Date().toLocaleString(),
+              module: 'webrtc',
+              method: 'register',
+              message: ' register failed'
+            });
             retryTheRequest(resolve, reject);
             retries--;
           } else reject();
         }).then(function (result) {
           return resolve(result);
         })["catch"](function (err) {
+          logServer.log({
+            time: new Date().toLocaleString(),
+            module: 'webrtc',
+            method: 'register',
+            message: ' register catch.failed' + JSON.stringify(err)
+          });
           console.log("[webrtc] register().catch.failed", {
             err: err
           });
@@ -395,6 +421,12 @@ function WebRTCClass(_ref) {
           } else {
             console.log("[webrtc] register().catch.failed.closing", {
               err: err
+            });
+            logServer.log({
+              time: new Date().toLocaleString(),
+              module: 'webrtc',
+              method: 'register',
+              message: ' register catch.failed' + JSON.stringify(err)
             });
             asyncLogCallback && asyncLogCallback("webrtc", "register.catch", "closing");
             publicized.close();
@@ -460,6 +492,12 @@ function WebRTCClass(_ref) {
       return new Promise(promiseHandler);
       function promiseHandler(resolve, reject) {
         if (variables.isDestroyed) return;
+        logServer.log({
+          time: new Date().toLocaleString(),
+          module: 'webrtc',
+          method: 'addIce',
+          message: 'send addIce request'
+        });
         fetch(addIceCandidateEndPoint, {
           method: "POST",
           body: JSON.stringify({
@@ -471,7 +509,15 @@ function WebRTCClass(_ref) {
             // 'Content-Type': 'application/x-www-form-urlencoded',
           }
         }).then(function (response) {
-          if (response.ok) return response.json();else if (retries) {
+          if (response.ok) {
+            logServer.log({
+              time: new Date().toLocaleString(),
+              module: 'webrtc',
+              method: 'addIce',
+              message: 'addIce success, result: ' + JSON.stringify(response.json())
+            });
+            return response.json();
+          } else if (retries) {
             retryTheRequest(resolve, reject);
             retries--;
           } else reject();
