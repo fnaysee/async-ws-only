@@ -13,7 +13,8 @@ function WebRTCClass(
         onMessage,
         onError,
         onCustomError,
-        onClose
+        onClose,
+        asyncLogCallback
     }
 ) {
     let defaultConfig = {
@@ -53,7 +54,8 @@ function WebRTCClass(
             subdomain: null,
             isDestroyed: false,
             dataChannelOpenTimeout: null,
-            isDataChannelOpened: false
+            isDataChannelOpened: false,
+            controller: new AbortController()
         };
 
 
@@ -161,8 +163,8 @@ function WebRTCClass(
                     config.timeoutIds.second = setTimeout(() => {
                         ping();
                         config.timeoutIds.third = setTimeout(() => {
-                            console.log("[Async][webrtc] Closing because of ping timeout.");
                             defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
+                            asyncLogCallback && asyncLogCallback("webrtc", "setPingTimeout", "closing");
                             publicized.close();
                         }, 2000);
                     }, 2000);
@@ -186,7 +188,7 @@ function WebRTCClass(
     function waitForConnectionToOpen(){
         variables.dataChannelOpenTimeout = setTimeout(() => {
             if(!isDataChannelOpened()) {
-                console.log("[Async][webrtc] Closing because of wait timeout.");
+                asyncLogCallback && asyncLogCallback("webrtc", "dataChannelOpenTimeout", "closing");
                 publicized.close();
             }
         }, defaultConfig.connectionOpenWaitTime);
@@ -198,10 +200,18 @@ function WebRTCClass(
                 variables.peerConnection = new RTCPeerConnection(defaultConfig.configuration);
                 console.log("[Async][webrtc] Created peer connection.");
             } catch (error) {
+                asyncLogCallback && asyncLogCallback("webrtc", "createPeerConnection", "closing");
                 publicized.close();
                 console.error("[Async][webrtc] Webrtc Peer Create Error: ", error.message);
                 return
             }
+
+            variables.peerConnection.onconnectionstatechange = function (event) {
+                asyncLogCallback && asyncLogCallback("webrtc", "onconnectionstatechange", variables.peerConnection.connectionState);
+            };
+            variables.peerConnection.oniceconnectionstatechange = function (event) {
+                asyncLogCallback && asyncLogCallback("webrtc", "oniceconnectionstatechange", variables.peerConnection.connectionState);
+            };
 
             variables.peerConnection.addEventListener('signalingstatechange', webrtcFunctions.signalingStateChangeCallback);
             variables.peerConnection.onicecandidate = function (event) {
@@ -232,7 +242,8 @@ function WebRTCClass(
                 webrtcFunctions.processAnswer(result.sdpAnswer);
             }
         },
-        signalingStateChangeCallback: function () {
+        signalingStateChangeCallback: function (signalingStateEvent) {
+            asyncLogCallback && asyncLogCallback("webrtc", "signalingStateChangeCallback", variables.peerConnection.signalingState);
             if (variables.peerConnection && variables.peerConnection.signalingState === 'stable') {
                 // handshakingFunctions.getCandidates().catch()
                 webrtcFunctions.addTheCandidates();
@@ -316,6 +327,7 @@ function WebRTCClass(
                     variables.dataChannel.send(stringData);
                 }
             } catch (error) {
+                asyncLogCallback && asyncLogCallback("webrtc", "webrtcFunctions.sendData.catch", error);
                 onCustomError({
                     errorCode: 4004,
                     errorMessage: "Error in channel send message!",
@@ -327,7 +339,7 @@ function WebRTCClass(
 
     let dataChannelCallbacks = {
         onopen: function (event) {
-            console.log("[Async][webrtc] dataChannel open");
+            asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onopen", event);
             variables.isDataChannelOpened = true;
             variables.pingController.resetPingLoop();
             onOpen(variables.deviceId);
@@ -348,13 +360,13 @@ function WebRTCClass(
         },
 
         onerror: function (error) {
-            console.log("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
+            asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onerror", error);
             defaultConfig.logLevel.debug && console.debug("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
             onError();
             publicized.close();
         },
         onclose: function (event) {
-            console.log("[Async][webrtc] dataChannel.onclose happened. EventData:", event);
+            asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onclose", event);
             publicized.close();
         }
     }
@@ -371,7 +383,9 @@ function WebRTCClass(
                 if(variables.isDestroyed)
                     return;
 
-                let registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint
+                let registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint,
+                    controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
                 fetch(registerEndPoint, {
                     method: "POST",
                     body: JSON.stringify({
@@ -381,8 +395,10 @@ function WebRTCClass(
                         "Content-Type": "application/json",
                         // 'Content-Type': 'application/x-www-form-urlencoded',
                     },
+                    signal: controller.signal
                 })
                     .then(function (response) {
+                        clearTimeout(timeoutId);
                         if(response.ok) {
                             waitForConnectionToOpen();
                             return response.json();
@@ -393,10 +409,12 @@ function WebRTCClass(
                     })
                     .then(result => resolve(result))
                     .catch(err => {
+                        clearTimeout(timeoutId);
                         if(retries){
                             retryTheRequest(resolve, reject);
                             retries--;
                         } else {
+                            asyncLogCallback && asyncLogCallback("webrtc", "register.catch", "closing");
                             publicized.close();
                         }
                         console.error(err);
@@ -481,9 +499,9 @@ function WebRTCClass(
                     },
                 })
                     .then(function (response) {
-                        if(response.ok)
+                        if(response.ok) {
                             return response.json();
-                        else if(retries){
+                        } else if(retries) {
                             retryTheRequest(resolve, reject);
                             retries--;
                         } else reject();
@@ -551,11 +569,13 @@ function WebRTCClass(
     publicized.emit = webrtcFunctions.sendData;
     publicized.connect = connect;
     publicized.close = function () {
+        asyncLogCallback && asyncLogCallback("webrtc", "publicized.close", "closing");
         removeCallbacks();
         resetVariables();
     }
     publicized.destroy = function () {
         variables.isDestroyed = true;
+        asyncLogCallback && asyncLogCallback("webrtc", "publicized.destroy", "closing")
         publicized.close();
         onOpen = null;
         onClose = null;
