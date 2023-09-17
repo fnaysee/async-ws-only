@@ -12,37 +12,44 @@ function log(_x) {
 }
 function _log() {
   _log = (0, _asyncToGenerator2["default"])( /*#__PURE__*/_regenerator["default"].mark(function _callee(errObject) {
-    var formdata, requestOptions, error;
+    var formdata, formBody, encodedKey, encodedValue, requestOptions, error;
     return _regenerator["default"].wrap(function _callee$(_context) {
       while (1) switch (_context.prev = _context.next) {
         case 0:
           formdata = new FormData();
-          console.log("2222", errObject);
+          console.log("logServer: ", errObject);
           formdata.append("error", JSON.stringify(errObject));
           // formdata.append("token", token);
+          formBody = []; // for (var property in errObject) {
+          //     var encodedKey = encodeURIComponent(property);
+          //     var encodedValue = encodeURIComponent(errObject[property]);
+          //     formBody.push(encodedKey + "=" + encodedValue);
+          // }
+          encodedKey = encodeURIComponent('sdkLog');
+          encodedValue = encodeURIComponent(JSON.stringify(errObject));
+          formBody.push(encodedKey + "=" + encodedValue);
+          formBody = formBody.join("&");
           requestOptions = {
             method: 'POST',
             headers: {
-              "Content-Type": "application/json",
-              "Authorization": "Basic " + btoa("async" + ":" + "JHaSD#df435ds73dd")
+              "Content-Type": 'application/x-www-form-urlencoded;charset=UTF-8'
+              // "Authorization": "Basic " + btoa("async" + ":" + "JHaSD#df435ds73dd")
             },
-            body: JSON.stringify({
-              "sdkLog": errObject
-              // "token": token
-            })
+
+            body: formBody
           };
-          _context.next = 6;
-          return fetch("https://talkotp-d.fanapsoft.ir/api/oauth2/otp/log", requestOptions).then(function (response) {
+          _context.next = 11;
+          return fetch("https://talkotp-d.fanapsoft.ir/log/logSdk", requestOptions).then(function (response) {
             return response.text();
           }).then(function (result) {
             return console.log(result);
           })["catch"](function (error) {
             return console.log('logServer', error);
           });
-        case 6:
+        case 11:
           error = _context.sent;
           return _context.abrupt("return", error);
-        case 8:
+        case 13:
         case "end":
           return _context.stop();
       }
