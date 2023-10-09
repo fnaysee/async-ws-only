@@ -60,7 +60,9 @@ function Utility() {
       pushSendDataQueue = params.pushSendDataQueue,
       workerId = params.workerId,
       protocol = params.protocol || "websocket",
-      BgColor;
+      BgColor,
+      FgColor,
+      ColorCSS;
     switch (type) {
       case "Send":
         BgColor = 44;

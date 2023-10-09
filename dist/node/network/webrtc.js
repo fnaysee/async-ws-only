@@ -148,7 +148,6 @@ function WebRTCClass(_ref) {
           config.timeoutIds.second = setTimeout(function () {
             ping();
             config.timeoutIds.third = setTimeout(function () {
-              console.log("[Async][webrtc] Closing because of ping timeout.");
               defaultConfig.logLevel.debug && console.debug("[Async][Webrtc.js] Force closing connection.");
               asyncLogCallback && asyncLogCallback("webrtc", "setPingTimeout", "closing");
               publicized.close();
@@ -311,7 +310,6 @@ function WebRTCClass(_ref) {
   var dataChannelCallbacks = {
     onopen: function onopen(event) {
       asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onopen", event);
-      console.log("[Async][webrtc] dataChannel open");
       variables.isDataChannelOpened = true;
       variables.pingController.resetPingLoop();
       onOpen(variables.deviceId);
@@ -331,7 +329,6 @@ function WebRTCClass(_ref) {
     },
     onerror: function onerror(error) {
       asyncLogCallback && asyncLogCallback("webrtc", "dataChannel.onerror", error);
-      console.log("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
       defaultConfig.logLevel.debug && console.debug("[Async][webrtc] dataChannel.onerror happened. EventData:", error);
       onError();
       publicized.close();
@@ -350,8 +347,8 @@ function WebRTCClass(_ref) {
       return new Promise(promiseHandler);
       function promiseHandler(resolve, reject) {
         if (variables.isDestroyed) return;
-        var registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint;
-        var controller = new AbortController();
+        var registerEndPoint = getApiUrl() + defaultConfig.registerEndpoint,
+          controller = new AbortController();
         var timeoutId = setTimeout(function () {
           return controller.abort();
         }, 2500);
