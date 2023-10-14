@@ -69,7 +69,7 @@ function Socket(params) {
             ping();
             config.timeoutIds.third = setTimeout(()=>{
               logLevel.debug && console.debug("[Async][Socket.js] Force closing socket.");
-              onCloseHandler(null);
+              // onCloseHandler(null);
               // socket && socket.close();
               closeTheSocket(closeCodes.PING_FAILED);
             }, 2000);
@@ -104,7 +104,7 @@ function Socket(params) {
           socketWatchTimeout = setTimeout(() => {
             // if(socket.readyState !== 1) {
             logLevel.debug && console.debug("[Async][Socket.js] socketWatchTimeout triggered.");
-            onCloseHandler(null);
+            // onCloseHandler(null);
             // socket && socket.close();
             closeTheSocket(closeCodes.CONNECTION_OPEN_TIMEOUT);
             // }
@@ -118,9 +118,8 @@ function Socket(params) {
                 socketWatchTimeout && clearTimeout(socketWatchTimeout);
               });
             } else {
-              onCloseHandler();
+              // onCloseHandler();
               closeTheSocket();
-
             }
           }
 
@@ -136,16 +135,15 @@ function Socket(params) {
               var messageData = JSON.parse(event.data);
               onMessage(messageData);
             } else {
-              onCloseHandler();
+              // onCloseHandler();
               closeTheSocket();
-
             }
           }
 
           socket.onclose = function(event) {
             pingController.stopPingLoop();
             logLevel.debug && console.debug("[Async][Socket.js] socket.onclose happened. EventData:", event);
-            onCloseHandler(event);
+            // onCloseHandler(event);
             closeTheSocket();
             socketWatchTimeout && clearTimeout(socketWatchTimeout);
           }
@@ -154,7 +152,7 @@ function Socket(params) {
             logLevel.debug && console.debug("[Async][Socket.js] socket.onerror happened. EventData:", event);
             if(onError){
               onError(event);
-              onCloseHandler();
+              // onCloseHandler();
               closeTheSocket();
               socketWatchTimeout && clearTimeout(socketWatchTimeout);
             }
@@ -175,7 +173,6 @@ function Socket(params) {
           socket.onmessage = null;
           socket.onerror = null;
           socket.onopen = null;
-          socket = null;
         }
       },
 
@@ -247,7 +244,7 @@ function Socket(params) {
   publicized.close = function() {
     logLevel.debug && console.debug("[Async][Socket.js] Closing socket by call to this.close");
     // socket && socket.close();
-    onCloseHandler(null);
+    // onCloseHandler(null);
     closeTheSocket(closeCodes.REQUEST_FROM_ASYNC_CLASS);
     socketWatchTimeout && clearTimeout(socketWatchTimeout);
   }
@@ -262,27 +259,32 @@ function Socket(params) {
   }
 
   function closeTheSocket(reason) {
+    onCloseHandler();
     if(socket) {
       function socketCloseErrorHandler(err) {
         console.error('Socket Close Error: ', err);
       }
 
-      socket.on('error', socketCloseErrorHandler);
+      socket.on && socket.on('error', socketCloseErrorHandler);
       setTimeout(()=> {
         if(socket) {
-          if(reason)
+          if(reason){
             socket.close(reason.code, reason.reason);
-          else
+          }
+          else{
             socket.close();
-
-          socket.off("error", socketCloseErrorHandler)
+          }
+          socket && socket.off("error", socketCloseErrorHandler)
         }
       }, 20);
     }
+    setTimeout(()=>{
+      socket = null;
+      if(!isDestroyed && onClose){
+        onClose();
+      }
+    }, 35)
 
-    if(!isDestroyed && onClose){
-      onClose();
-    }
   }
 
   return publicized;
