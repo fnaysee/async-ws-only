@@ -274,7 +274,7 @@ function Socket(params) {
           else{
             socket.close();
           }
-          socket && socket.off("error", socketCloseErrorHandler)
+          socket.off && socket.off("error", socketCloseErrorHandler)
         }
       }, 20);
     }
