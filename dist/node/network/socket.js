@@ -248,18 +248,18 @@ function Socket(params) {
       var socketCloseErrorHandler = function socketCloseErrorHandler(err) {
         console.error('Socket Close Error: ', err);
       };
-      socket.on && socket.on('error', socketCloseErrorHandler);
-      setTimeout(function () {
-        if (socket) {
-          if (reason) {
-            socket.close(reason.code, reason.reason);
-          } else {
-            socket.close();
-          }
-          socket.off && socket.off("error", socketCloseErrorHandler);
+      socket.onerror = socketCloseErrorHandler;
+      if (socket) {
+        if (reason) {
+          socket.close(reason.code, reason.reason);
+        } else {
+          socket.close();
         }
-      }, 20);
+        socket.onerror = null;
+        // socket.off && socket.off("error", socketCloseErrorHandler)
+      }
     }
+
     setTimeout(function () {
       socket = null;
       if (!isDestroyed && onClose) {

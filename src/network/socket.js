@@ -265,18 +265,17 @@ function Socket(params) {
         console.error('Socket Close Error: ', err);
       }
 
-      socket.on && socket.on('error', socketCloseErrorHandler);
-      setTimeout(()=> {
-        if(socket) {
-          if(reason){
-            socket.close(reason.code, reason.reason);
-          }
-          else{
-            socket.close();
-          }
-          socket.off && socket.off("error", socketCloseErrorHandler)
+      socket.onerror = socketCloseErrorHandler;
+
+      if(socket) {
+        if(reason) {
+          socket.close(reason.code, reason.reason);
+        } else {
+          socket.close();
         }
-      }, 20);
+        socket.onerror = null;
+        // socket.off && socket.off("error", socketCloseErrorHandler)
+      }
     }
     setTimeout(()=>{
       socket = null;
