@@ -947,6 +947,7 @@ function Async(params) {
 
     let reconnectSocketTimeout;
     this.reconnectSocket = function () {
+        retryStep.set(0);
         if(isConnecting)
             return;
 
@@ -957,7 +958,7 @@ function Async(params) {
 
         fireEvent('disconnect', {});
 
-        retryStep.set(0);
+        // retryStep.set(0);
 
         logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
 

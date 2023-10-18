@@ -854,13 +854,16 @@ function Async(params) {
   };
   var reconnectSocketTimeout;
   this.reconnectSocket = function () {
+    retryStep.set(0);
     if (isConnecting) return;
     isSocketOpen = false;
     isDeviceRegister = false;
     oldPeerId = peerId;
     socketState = socketStateType.CLOSED;
     fireEvent('disconnect', {});
-    retryStep.set(0);
+
+    // retryStep.set(0);
+
     logLevel.debug && console.debug("[Async][async.js] on socket close, retryStep:", retryStep.get());
     fireEvent('stateChange', {
       socketState: socketState,
