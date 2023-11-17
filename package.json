@@ -29,7 +29,7 @@
   "engines": {
     "node": ">=4.2.4"
   },
-  "author": "Masoud Amjadi <masoudmanson@gmail.com>",
+  "author": "Masoud Amjadi <masoudmanson@gmail.com>, Farhan Naysee <farhan.naysee@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/FanapSoft/pod-async-ws-only-js-sdk/issues"
